@@ -93,5 +93,5 @@ func (s *MinIOStorage) GetPresignedURL(ctx context.Context, objectName string, e
 }
 
 func (s *MinIOStorage) Delete(ctx context.Context, objectName string) error {
-	return s.client.RemoveObject(ctx, objectName, objectName, minio.RemoveObjectOptions{})
+	return s.client.RemoveObject(ctx, s.bucket, objectName, minio.RemoveObjectOptions{})
 }
