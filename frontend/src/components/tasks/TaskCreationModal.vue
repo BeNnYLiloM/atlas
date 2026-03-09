@@ -60,25 +60,48 @@ async function submit() {
       <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div class="relative bg-dark-900 rounded-2xl border border-dark-700 shadow-2xl w-full max-w-lg p-6">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-semibold text-dark-100">Создать задачу</h2>
+          <h2 class="text-lg font-semibold text-dark-100">
+            Создать задачу
+          </h2>
           <button
             class="text-dark-500 hover:text-dark-300"
             aria-label="Закрыть"
             @click="emit('close')"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
 
-        <div v-if="messageId" class="mb-3 px-3 py-2 bg-atlas-600/10 border border-atlas-600/30 rounded-lg">
-          <p class="text-xs text-atlas-300">Создаётся из сообщения</p>
+        <div
+          v-if="messageId"
+          class="mb-3 px-3 py-2 bg-atlas-600/10 border border-atlas-600/30 rounded-lg"
+        >
+          <p class="text-xs text-atlas-300">
+            Создаётся из сообщения
+          </p>
         </div>
 
-        <form @submit.prevent="submit" class="space-y-4">
+        <form
+          class="space-y-4"
+          @submit.prevent="submit"
+        >
           <div>
-            <label class="block text-sm font-medium text-dark-300 mb-1" for="task-title">Название *</label>
+            <label
+              class="block text-sm font-medium text-dark-300 mb-1"
+              for="task-title"
+            >Название *</label>
             <input
               id="task-title"
               v-model="title"
@@ -86,11 +109,14 @@ async function submit() {
               class="w-full px-3 py-2 bg-dark-800 border border-dark-700 rounded-lg text-dark-100 placeholder:text-dark-500 focus:outline-none focus:border-atlas-500"
               placeholder="Что нужно сделать?"
               autofocus
-            />
+            >
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-dark-300 mb-1" for="task-desc">Описание</label>
+            <label
+              class="block text-sm font-medium text-dark-300 mb-1"
+              for="task-desc"
+            >Описание</label>
             <textarea
               id="task-desc"
               v-model="description"
@@ -120,7 +146,12 @@ async function submit() {
             </div>
           </div>
 
-          <p v-if="error" class="text-sm text-red-400">{{ error }}</p>
+          <p
+            v-if="error"
+            class="text-sm text-red-400"
+          >
+            {{ error }}
+          </p>
 
           <div class="flex items-center justify-end gap-3 pt-2">
             <button

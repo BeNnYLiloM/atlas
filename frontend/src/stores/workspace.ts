@@ -116,6 +116,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
           display_name: '',
           avatar_url: null,
           nickname: null,
+          custom_roles: [],
         })
       }
     }

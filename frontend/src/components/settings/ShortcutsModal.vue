@@ -31,14 +31,26 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
       <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div class="relative bg-dark-900 rounded-2xl border border-dark-700 shadow-2xl w-full max-w-md p-6">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-semibold text-dark-100">Горячие клавиши</h2>
+          <h2 class="text-lg font-semibold text-dark-100">
+            Горячие клавиши
+          </h2>
           <button
             class="text-dark-500 hover:text-dark-300 transition-colors"
             aria-label="Закрыть"
             @click="uiStore.shortcutsVisible = false"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
@@ -60,7 +72,9 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           </div>
         </div>
 
-        <p class="mt-4 text-xs text-dark-500 text-center">Нажмите Ctrl+/ чтобы закрыть</p>
+        <p class="mt-4 text-xs text-dark-500 text-center">
+          Нажмите Ctrl+/ чтобы закрыть
+        </p>
       </div>
     </div>
   </Teleport>

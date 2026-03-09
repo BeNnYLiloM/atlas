@@ -46,9 +46,16 @@ function toggle() {
         stroke-width="3"
         viewBox="0 0 12 12"
       >
-        <path stroke-linecap="round" stroke-linejoin="round" d="M1.5 6l3 3 6-6" />
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M1.5 6l3 3 6-6"
+        />
       </svg>
     </span>
-    <span v-if="label" class="text-sm text-dark-200">{{ label }}</span>
+    <span
+      v-if="label"
+      class="text-sm text-dark-200"
+    >{{ label }}</span>
   </button>
 </template>

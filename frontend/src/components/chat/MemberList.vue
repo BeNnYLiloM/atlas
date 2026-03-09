@@ -158,12 +158,21 @@ function getInitials(name: string) {
     </div>
 
     <!-- Spinner -->
-    <div v-if="loading" class="flex-1 flex items-center justify-center">
+    <div
+      v-if="loading"
+      class="flex-1 flex items-center justify-center"
+    >
       <div class="w-5 h-5 border-2 border-atlas-500 border-t-transparent rounded-full animate-spin" />
     </div>
 
-    <div v-else class="flex-1 overflow-y-auto py-2 scrollbar-thin">
-      <template v-for="group in splitGroups" :key="group.id">
+    <div
+      v-else
+      class="flex-1 overflow-y-auto py-2 scrollbar-thin"
+    >
+      <template
+        v-for="group in splitGroups"
+        :key="group.id"
+      >
         <template v-if="group.online.length || group.offline.length">
           <!-- Group header -->
           <div class="px-3 pt-4 pb-1 flex items-center gap-1.5">
@@ -193,7 +202,7 @@ function getInitials(name: string) {
                 :src="member.avatar_url"
                 :alt="member.display_name"
                 class="w-8 h-8 rounded-full object-cover"
-              />
+              >
               <div
                 v-else
                 class="w-8 h-8 rounded-full bg-atlas-600 flex items-center justify-center text-xs font-semibold text-white"
@@ -206,7 +215,10 @@ function getInitials(name: string) {
               <div class="text-sm text-dark-200 truncate group-hover:text-white transition-colors">
                 {{ member.display_name }}
               </div>
-              <div v-if="member.system_role !== 'member'" class="text-xs text-dark-500 truncate">
+              <div
+                v-if="member.system_role !== 'member'"
+                class="text-xs text-dark-500 truncate"
+              >
                 {{ member.system_role === 'owner' ? 'Владелец' : 'Администратор' }}
               </div>
             </div>
@@ -224,7 +236,7 @@ function getInitials(name: string) {
                 :src="member.avatar_url"
                 :alt="member.display_name"
                 class="w-8 h-8 rounded-full object-cover opacity-50"
-              />
+              >
               <div
                 v-else
                 class="w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center text-xs font-semibold text-dark-400"
@@ -237,7 +249,10 @@ function getInitials(name: string) {
               <div class="text-sm text-dark-500 truncate group-hover:text-dark-300 transition-colors">
                 {{ member.display_name }}
               </div>
-              <div v-if="member.system_role !== 'member'" class="text-xs text-dark-600 truncate">
+              <div
+                v-if="member.system_role !== 'member'"
+                class="text-xs text-dark-600 truncate"
+              >
                 {{ member.system_role === 'owner' ? 'Владелец' : 'Администратор' }}
               </div>
             </div>
@@ -245,7 +260,10 @@ function getInitials(name: string) {
         </template>
       </template>
 
-      <div v-if="!splitGroups.length" class="px-4 py-8 text-center text-sm text-dark-500">
+      <div
+        v-if="!splitGroups.length"
+        class="px-4 py-8 text-center text-sm text-dark-500"
+      >
         Нет участников
       </div>
     </div>

@@ -42,7 +42,11 @@ const imageUrl = computed(() => {
       v-if="isImage && imageUrl"
       class="w-32 h-32 rounded-lg overflow-hidden bg-dark-800 border border-dark-700"
     >
-      <img :src="imageUrl" :alt="fileName" class="w-full h-full object-cover" />
+      <img
+        :src="imageUrl"
+        :alt="fileName"
+        class="w-full h-full object-cover"
+      >
     </div>
 
     <!-- File icon for non-images -->
@@ -50,12 +54,26 @@ const imageUrl = computed(() => {
       v-else
       class="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-800 border border-dark-700 max-w-48"
     >
-      <svg class="w-5 h-5 text-atlas-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+      <svg
+        class="w-5 h-5 text-atlas-400 flex-shrink-0"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+        />
       </svg>
       <div class="min-w-0">
-        <p class="text-xs text-dark-200 truncate">{{ fileName }}</p>
-        <p class="text-xs text-dark-500">{{ fileSize }}</p>
+        <p class="text-xs text-dark-200 truncate">
+          {{ fileName }}
+        </p>
+        <p class="text-xs text-dark-500">
+          {{ fileSize }}
+        </p>
       </div>
     </div>
 
@@ -65,8 +83,18 @@ const imageUrl = computed(() => {
       class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-dark-600 text-dark-300 hover:bg-red-600 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
       @click="emit('remove')"
     >
-      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+      <svg
+        class="w-3 h-3"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M6 18L18 6M6 6l12 12"
+        />
       </svg>
     </button>
 

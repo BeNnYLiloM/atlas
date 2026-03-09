@@ -70,19 +70,38 @@ async function onSubmit() {
       <!-- Логотип -->
       <div class="text-center mb-8">
         <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-atlas-500 to-atlas-700 mb-4 shadow-lg shadow-atlas-500/25">
-          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            class="w-8 h-8 text-white"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
         </div>
-        <h1 class="text-3xl font-bold text-gradient">Atlas</h1>
-        <p class="text-dark-400 mt-2">Корпоративный мессенджер</p>
+        <h1 class="text-3xl font-bold text-gradient">
+          Atlas
+        </h1>
+        <p class="text-dark-400 mt-2">
+          Корпоративный мессенджер
+        </p>
       </div>
 
       <!-- Форма -->
       <div class="card">
-        <h2 class="text-xl font-semibold text-white mb-6">Вход в систему</h2>
+        <h2 class="text-xl font-semibold text-white mb-6">
+          Вход в систему
+        </h2>
 
-        <form @submit.prevent="onSubmit" class="space-y-4">
+        <form
+          class="space-y-4"
+          @submit.prevent="onSubmit"
+        >
           <Input
             v-model="form.email"
             type="email"
@@ -99,7 +118,10 @@ async function onSubmit() {
             :error="errors.password"
           />
 
-          <p v-if="errors.general" class="text-sm text-red-400 text-center">
+          <p
+            v-if="errors.general"
+            class="text-sm text-red-400 text-center"
+          >
             {{ errors.general }}
           </p>
 
@@ -115,7 +137,10 @@ async function onSubmit() {
         <div class="mt-6 text-center">
           <p class="text-dark-400 text-sm">
             Нет аккаунта?
-            <router-link to="/register" class="text-atlas-400 hover:text-atlas-300 font-medium">
+            <router-link
+              to="/register"
+              class="text-atlas-400 hover:text-atlas-300 font-medium"
+            >
               Зарегистрироваться
             </router-link>
           </p>

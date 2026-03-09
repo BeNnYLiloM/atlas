@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"time"
@@ -29,16 +30,18 @@ type Client struct {
 	UserID      string
 	WorkspaceID string // текущий workspace для routing typing events
 	hub         *Hub
+	access      AccessChecker
 	conn        *websocket.Conn
 	send        chan []byte
 }
 
 // NewClient создает нового клиента
-func NewClient(hub *Hub, conn *websocket.Conn, userID string) *Client {
+func NewClient(hub *Hub, conn *websocket.Conn, userID string, access AccessChecker) *Client {
 	return &Client{
 		ID:     uuid.New().String(),
 		UserID: userID,
 		hub:    hub,
+		access: access,
 		conn:   conn,
 		send:   make(chan []byte, 256),
 	}
@@ -117,7 +120,7 @@ func (c *Client) WritePump() {
 // handleMessage обрабатывает входящее сообщение
 func (c *Client) handleMessage(message []byte) {
 	log.Printf("[WS Client %s] Received raw message: %s", c.ID, string(message))
-	
+
 	var msg WSMessage
 	if err := json.Unmarshal(message, &msg); err != nil {
 		log.Printf("[WS Client %s] Error unmarshaling message: %v", c.ID, err)
@@ -136,6 +139,15 @@ func (c *Client) handleMessage(message []byte) {
 			return
 		}
 		log.Printf("[WS Client %s] Subscribing to workspace: %s", c.ID, data.WorkspaceID)
+		allowed, err := c.access.CanAccessWorkspace(context.Background(), data.WorkspaceID, c.UserID)
+		if err != nil {
+			log.Printf("[WS Client %s] Workspace access check failed: %v", c.ID, err)
+			return
+		}
+		if !allowed {
+			log.Printf("[WS Client %s] Workspace access denied: %s", c.ID, data.WorkspaceID)
+			return
+		}
 		c.WorkspaceID = data.WorkspaceID
 		c.hub.SubscribeToWorkspace(c, data.WorkspaceID)
 
@@ -159,6 +171,15 @@ func (c *Client) handleMessage(message []byte) {
 			return
 		}
 		log.Printf("[WS Client %s] Subscribing to channel: %s", c.ID, data.ChannelID)
+		allowed, err := c.access.CanAccessChannel(context.Background(), data.ChannelID, c.UserID)
+		if err != nil {
+			log.Printf("[WS Client %s] Channel access check failed: %v", c.ID, err)
+			return
+		}
+		if !allowed {
+			log.Printf("[WS Client %s] Channel access denied: %s", c.ID, data.ChannelID)
+			return
+		}
 		c.hub.Subscribe(c, data.ChannelID)
 
 	case "unsubscribe":
@@ -186,6 +207,15 @@ func (c *Client) handleMessage(message []byte) {
 			log.Printf("[WS Client %s] No workspaceID for typing event, dropping", c.ID)
 			return
 		}
+		allowed, err := c.access.CanAccessChannel(context.Background(), data.ChannelID, c.UserID)
+		if err != nil {
+			log.Printf("[WS Client %s] Typing access check failed: %v", c.ID, err)
+			return
+		}
+		if !allowed {
+			log.Printf("[WS Client %s] Typing access denied for channel: %s", c.ID, data.ChannelID)
+			return
+		}
 		c.hub.BroadcastToWorkspace(c.WorkspaceID, "typing", map[string]interface{}{
 			"user_id":    c.UserID,
 			"channel_id": data.ChannelID,
@@ -196,4 +226,3 @@ func (c *Client) handleMessage(message []byte) {
 		log.Printf("[WS Client %s] Unknown event: %s", c.ID, msg.Event)
 	}
 }
-

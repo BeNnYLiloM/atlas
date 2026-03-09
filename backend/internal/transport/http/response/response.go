@@ -63,6 +63,9 @@ func Error(c *gin.Context, err error) {
 	case errors.Is(err, service.ErrMessageNotFound):
 		status = http.StatusNotFound
 		message = "message not found"
+	case errors.Is(err, service.ErrTaskNotFound):
+		status = http.StatusNotFound
+		message = "task not found"
 	case errors.Is(err, service.ErrNotMember):
 		status = http.StatusForbidden
 		message = "not a member of workspace"
@@ -75,4 +78,3 @@ func Error(c *gin.Context, err error) {
 func BadRequest(c *gin.Context, message string) {
 	c.JSON(http.StatusBadRequest, ErrorResponse{Error: "bad request", Message: message})
 }
-

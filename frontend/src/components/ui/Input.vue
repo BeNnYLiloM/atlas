@@ -47,8 +47,11 @@ function onInput(event: Event) {
         props.error && 'border-red-500 focus:border-red-500 focus:ring-red-500',
       ]"
       @input="onInput"
-    />
-    <p v-if="props.error" class="text-xs text-red-400">
+    >
+    <p
+      v-if="props.error"
+      class="text-xs text-red-400"
+    >
       {{ props.error }}
     </p>
   </div>

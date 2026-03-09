@@ -1,8 +1,11 @@
 package ws
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -13,20 +16,40 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		// В продакшене нужно проверять origin
-		return true
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true
+		}
+
+		originURL, err := url.Parse(origin)
+		if err != nil {
+			return false
+		}
+		if strings.EqualFold(originURL.Host, r.Host) {
+			return true
+		}
+
+		host := originURL.Hostname()
+		return host == "localhost" || host == "127.0.0.1"
 	},
+}
+
+type AccessChecker interface {
+	CanAccessWorkspace(ctx context.Context, workspaceID, userID string) (bool, error)
+	CanAccessChannel(ctx context.Context, channelID, userID string) (bool, error)
 }
 
 type Handler struct {
 	hub         *Hub
 	authService *service.AuthService
+	access      AccessChecker
 }
 
-func NewHandler(hub *Hub, authService *service.AuthService) *Handler {
+func NewHandler(hub *Hub, authService *service.AuthService, access AccessChecker) *Handler {
 	return &Handler{
 		hub:         hub,
 		authService: authService,
+		access:      access,
 	}
 }
 
@@ -57,7 +80,7 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	client := NewClient(h.hub, conn, claims.UserID)
+	client := NewClient(h.hub, conn, claims.UserID, h.access)
 	h.hub.Register(client)
 
 	log.Printf("[WS] Client connected: userID=%s, clientID=%s", claims.UserID, client.ID)
@@ -71,4 +94,3 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 func (h *Handler) RegisterRoutes(r *gin.Engine) {
 	r.GET("/ws", h.HandleWebSocket)
 }
-

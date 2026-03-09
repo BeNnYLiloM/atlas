@@ -2,9 +2,11 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/your-org/atlas/backend/internal/domain"
 )
@@ -46,6 +48,9 @@ func (r *TaskRepository) GetByID(ctx context.Context, id string) (*domain.Task, 
 		&task.DueDate, &task.CreatedAt, &task.UpdatedAt,
 	)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("TaskRepository.GetByID: %w", err)
 	}
 	return task, nil

@@ -71,11 +71,11 @@ func main() {
 	categoryService := service.NewChannelCategoryService(channelCategoryRepo, categoryPermRepo, channelRepo, workspaceRepo, roleRepo)
 	roleService := service.NewWorkspaceRoleService(roleRepo, workspaceRepo)
 	channelService := service.NewChannelService(channelRepo, workspaceRepo, channelMemberRepo, channelPermRepo, roleRepo)
-	messageService := service.NewMessageService(messageRepo, channelRepo, workspaceRepo, channelMemberRepo)
+	messageService := service.NewMessageService(messageRepo, channelRepo, workspaceRepo, channelMemberRepo, channelPermRepo, roleRepo)
 	liveKitService := service.NewLiveKitService(cfg.LiveKit)
-	searchService := service.NewSearchService(searchRepo)
+	searchService := service.NewSearchService(searchRepo, workspaceRepo, channelRepo, roleRepo, channelPermRepo)
 	reactionService := service.NewReactionService(reactionRepo, wsHub)
-	taskService := service.NewTaskService(taskRepo)
+	taskService := service.NewTaskService(taskRepo, workspaceRepo, messageRepo, channelRepo, roleRepo, channelPermRepo)
 
 	// MinIO storage (не блокируем старт если MinIO недоступен)
 	minioStorage, minioErr := storage.NewMinIOStorage(
@@ -160,7 +160,7 @@ func main() {
 	}
 
 	// WebSocket handler
-	wsHandler := ws.NewHandler(wsHub, authService)
+	wsHandler := ws.NewHandler(wsHub, authService, channelService)
 	wsHandler.RegisterRoutes(router)
 
 	// Создаем HTTP сервер

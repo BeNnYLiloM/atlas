@@ -581,7 +581,10 @@ onUnmounted(() => {
 <template>
   <div class="px-4 pb-4">
     <!-- Pending files preview -->
-    <div v-if="pendingFiles.length > 0" class="flex gap-2 flex-wrap mb-2 px-1">
+    <div
+      v-if="pendingFiles.length > 0"
+      class="flex gap-2 flex-wrap mb-2 px-1"
+    >
       <FilePreview
         v-for="(file, idx) in pendingFiles"
         :key="idx"
@@ -592,7 +595,12 @@ onUnmounted(() => {
     </div>
 
     <!-- Upload error -->
-    <p v-if="uploadError" class="text-xs text-red-400 mb-1 px-1">{{ uploadError }}</p>
+    <p
+      v-if="uploadError"
+      class="text-xs text-red-400 mb-1 px-1"
+    >
+      {{ uploadError }}
+    </p>
 
     <!-- Input area with drag-drop + mention dropdown anchor -->
     <div
@@ -623,11 +631,18 @@ onUnmounted(() => {
                 class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
                 :style="{ backgroundColor: (item.color ?? '#888') + '33', color: item.color ?? '#888' }"
               >
-                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                <svg
+                  class="w-3.5 h-3.5"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
                 </svg>
               </span>
-              <span class="text-sm truncate font-medium" :style="{ color: item.color }">{{ item.display }}</span>
+              <span
+                class="text-sm truncate font-medium"
+                :style="{ color: item.color }"
+              >{{ item.display }}</span>
             </button>
           </template>
 
@@ -688,14 +703,24 @@ onUnmounted(() => {
           multiple
           class="hidden"
           @change="onFileSelect"
-        />
+        >
         <button
           class="p-2 rounded text-dark-500 hover:text-dark-300 hover:bg-dark-700"
           title="Прикрепить файл (до 10 MB)"
           @click="fileInputRef?.click()"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+            />
           </svg>
         </button>
         <div class="relative emoji-picker-wrapper">
@@ -705,8 +730,18 @@ onUnmounted(() => {
             title="Эмодзи"
             @click="toggleEmojiPicker"
           >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
           </button>
           <div
@@ -723,13 +758,26 @@ onUnmounted(() => {
           v-if="isSlowmodeActive"
           class="flex items-center gap-1.5 mr-2 px-2 py-1 bg-amber-500/10 rounded-lg"
         >
-          <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            class="w-3.5 h-3.5 text-amber-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
           <span class="text-xs text-amber-400 font-mono font-medium">{{ slowmodeRemaining }}с</span>
         </div>
 
-        <span v-else class="text-xs text-dark-600 mr-2">Enter — отправить, Shift+Enter — перенос</span>
+        <span
+          v-else
+          class="text-xs text-dark-600 mr-2"
+        >Enter — отправить, Shift+Enter — перенос</span>
 
         <!-- Send button -->
         <button
@@ -748,8 +796,19 @@ onUnmounted(() => {
             fill="none"
             viewBox="0 0 24 24"
           >
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            />
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
           </svg>
           <svg
             v-else
@@ -758,7 +817,12 @@ onUnmounted(() => {
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+            />
           </svg>
         </button>
       </div>

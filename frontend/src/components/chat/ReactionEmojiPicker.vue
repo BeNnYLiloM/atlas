@@ -35,7 +35,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div ref="containerRef" class="reaction-picker" />
+  <div
+    ref="containerRef"
+    class="reaction-picker"
+  />
 </template>
 
 <style scoped>

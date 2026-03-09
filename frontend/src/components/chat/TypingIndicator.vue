@@ -40,11 +40,23 @@ const typingText = computed(() => {
     class="px-4 py-1 flex items-center gap-2 text-xs text-dark-400 min-h-[24px]"
   >
     <span class="flex gap-0.5 items-center">
-      <span class="w-1.5 h-1.5 bg-dark-400 rounded-full animate-bounce" style="animation-delay: 0ms" />
-      <span class="w-1.5 h-1.5 bg-dark-400 rounded-full animate-bounce" style="animation-delay: 150ms" />
-      <span class="w-1.5 h-1.5 bg-dark-400 rounded-full animate-bounce" style="animation-delay: 300ms" />
+      <span
+        class="w-1.5 h-1.5 bg-dark-400 rounded-full animate-bounce"
+        style="animation-delay: 0ms"
+      />
+      <span
+        class="w-1.5 h-1.5 bg-dark-400 rounded-full animate-bounce"
+        style="animation-delay: 150ms"
+      />
+      <span
+        class="w-1.5 h-1.5 bg-dark-400 rounded-full animate-bounce"
+        style="animation-delay: 300ms"
+      />
     </span>
     <span>{{ typingText }}</span>
   </div>
-  <div v-else class="min-h-[24px]" />
+  <div
+    v-else
+    class="min-h-[24px]"
+  />
 </template>

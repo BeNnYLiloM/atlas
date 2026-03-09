@@ -3,6 +3,15 @@ import { ref, computed } from 'vue'
 import { channelsApi, categoriesApi } from '@/api'
 import type { Channel, ChannelCategory, ChannelCreate, ChannelUpdate, ChannelWithUnread, NotificationLevel } from '@/types'
 
+function toChannelWithUnread(channel: Channel, unreadCount = 0, mentionCount = 0, notificationLevel: NotificationLevel = 'all'): ChannelWithUnread {
+  return {
+    ...channel,
+    unread_count: unreadCount,
+    mention_count: mentionCount,
+    notification_level: notificationLevel,
+  }
+}
+
 export const useChannelsStore = defineStore('channels', () => {
   const channels = ref<ChannelWithUnread[]>([])
   const categories = ref<ChannelCategory[]>([])
@@ -68,8 +77,7 @@ export const useChannelsStore = defineStore('channels', () => {
     error.value = null
     try {
       const channel = await channelsApi.create(data)
-      // Добавляем с unread_count = 0
-      channels.value.push({ ...channel, unread_count: 0 })
+      channels.value.push(toChannelWithUnread(channel))
       if (channel.type === 'text') {
         currentChannelId.value = channel.id
       }
@@ -91,8 +99,13 @@ export const useChannelsStore = defineStore('channels', () => {
     const updated = await channelsApi.update(channelId, data)
     const idx = channels.value.findIndex(c => c.id === channelId)
     if (idx !== -1) {
-      const unread = channels.value[idx].unread_count
-      channels.value[idx] = { ...updated, unread_count: unread }
+      const current = channels.value[idx]
+      channels.value[idx] = toChannelWithUnread(
+        updated,
+        current.unread_count,
+        current.mention_count,
+        current.notification_level,
+      )
     }
     return updated
   }
@@ -100,6 +113,11 @@ export const useChannelsStore = defineStore('channels', () => {
   async function updateNotifications(channelId: string, level: NotificationLevel) {
     await channelsApi.updateNotifications(channelId, level)
     notificationLevels.value[channelId] = level
+
+    const channel = channels.value.find(c => c.id === channelId)
+    if (channel) {
+      channel.notification_level = level
+    }
   }
 
   function getNotificationLevel(channelId: string): NotificationLevel {
@@ -131,7 +149,7 @@ export const useChannelsStore = defineStore('channels', () => {
   function addChannel(channel: Channel) {
     const exists = channels.value.find(c => c.id === channel.id)
     if (!exists) {
-      channels.value.push({ ...channel, unread_count: 0 })
+      channels.value.push(toChannelWithUnread(channel))
       console.log('[Channels] Added channel:', channel.name)
     }
   }
@@ -139,9 +157,13 @@ export const useChannelsStore = defineStore('channels', () => {
   function updateChannel(channel: Channel) {
     const index = channels.value.findIndex(c => c.id === channel.id)
     if (index !== -1) {
-      // Сохраняем unread_count при обновлении
-      const unread = channels.value[index].unread_count
-      channels.value[index] = { ...channel, unread_count: unread }
+      const current = channels.value[index]
+      channels.value[index] = toChannelWithUnread(
+        channel,
+        current.unread_count,
+        current.mention_count,
+        current.notification_level,
+      )
       console.log('[Channels] Updated channel:', channel.name)
     }
   }
@@ -151,7 +173,7 @@ export const useChannelsStore = defineStore('channels', () => {
     if (index !== -1) {
       channels.value.splice(index, 1)
       console.log('[Channels] Removed channel:', channelId)
-      
+
       // Если удалили текущий канал, переключаемся на первый доступный
       if (currentChannelId.value === channelId && textChannels.value.length > 0) {
         currentChannelId.value = textChannels.value[0].id
@@ -168,6 +190,11 @@ export const useChannelsStore = defineStore('channels', () => {
 
   function incrementMention(channelId: string) {
     mentionCounts.value[channelId] = (mentionCounts.value[channelId] ?? 0) + 1
+
+    const channel = channels.value.find(c => c.id === channelId)
+    if (channel) {
+      channel.mention_count = mentionCounts.value[channelId]
+    }
   }
 
   function getMentionCount(channelId: string): number {
@@ -178,6 +205,7 @@ export const useChannelsStore = defineStore('channels', () => {
     const channel = channels.value.find(c => c.id === channelId)
     if (channel) {
       channel.unread_count = 0
+      channel.mention_count = 0
     }
     mentionCounts.value[channelId] = 0
   }
@@ -272,4 +300,3 @@ export const useChannelsStore = defineStore('channels', () => {
     $reset,
   }
 })
-

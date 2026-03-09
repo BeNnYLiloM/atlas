@@ -35,7 +35,7 @@ const newChannelCategoryId = ref<string | null>(null)
 const creatingChannel = ref(false)
 
 function normalizeChannelName(value: string) {
-  return value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-zа-яё0-9\-]/gi, '')
+  return value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-zа-яё0-9-]/gi, '')
 }
 
 function onChannelNameInput(e: Event) {
@@ -92,8 +92,18 @@ function logout() {
         class="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm text-dark-400 hover:text-dark-100 hover:bg-dark-800 transition-colors"
         active-class="bg-atlas-600/20 text-atlas-300"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+          />
         </svg>
         Задачи
       </RouterLink>
@@ -102,8 +112,18 @@ function logout() {
           class="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm text-dark-400 hover:text-dark-100 hover:bg-dark-800 transition-colors"
           @click="showCreateChannel = true"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 4v16m8-8H4"
+            />
           </svg>
           Создать канал
         </button>
@@ -111,9 +131,24 @@ function logout() {
           class="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm text-dark-400 hover:text-dark-100 hover:bg-dark-800 transition-colors"
           @click="showWorkspaceSettings = true"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+            />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+            />
           </svg>
           Настройки воркспейса
         </button>
@@ -142,8 +177,18 @@ function logout() {
         title="Настройки уведомлений"
         @click="showUserSettings = true"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+          />
         </svg>
       </button>
       <button
@@ -151,21 +196,44 @@ function logout() {
         title="Выйти"
         @click="logout"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+          />
         </svg>
       </button>
     </div>
 
     <!-- Workspace settings modal -->
-    <WorkspaceSettingsModal :open="showWorkspaceSettings" @close="showWorkspaceSettings = false" />
+    <WorkspaceSettingsModal
+      :open="showWorkspaceSettings"
+      @close="showWorkspaceSettings = false"
+    />
 
     <!-- User notification settings modal -->
-    <UserSettingsModal :open="showUserSettings" @close="showUserSettings = false" />
+    <UserSettingsModal
+      :open="showUserSettings"
+      @close="showUserSettings = false"
+    />
 
     <!-- Create channel modal -->
-    <Modal :open="showCreateChannel" title="Создать канал" @close="showCreateChannel = false">
-      <form @submit.prevent="createChannel" class="space-y-4">
+    <Modal
+      :open="showCreateChannel"
+      title="Создать канал"
+      @close="showCreateChannel = false"
+    >
+      <form
+        class="space-y-4"
+        @submit.prevent="createChannel"
+      >
         <Input
           v-model="newChannelName"
           label="Название канала"
@@ -182,7 +250,7 @@ function logout() {
                 type="radio"
                 value="text"
                 class="w-4 h-4 text-atlas-600 bg-dark-800 border-dark-600"
-              />
+              >
               <span class="text-sm text-dark-200">Текстовый</span>
             </label>
             <label class="flex items-center gap-2 cursor-pointer">
@@ -191,7 +259,7 @@ function logout() {
                 type="radio"
                 value="voice"
                 class="w-4 h-4 text-atlas-600 bg-dark-800 border-dark-600"
-              />
+              >
               <span class="text-sm text-dark-200">Голосовой</span>
             </label>
           </div>
@@ -204,8 +272,14 @@ function logout() {
             v-model="newChannelCategoryId"
             class="w-full px-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-dark-100 focus:border-atlas-500 focus:outline-none text-sm"
           >
-            <option :value="null">Без категории</option>
-            <option v-for="cat in channelsStore.categories" :key="cat.id" :value="cat.id">
+            <option :value="null">
+              Без категории
+            </option>
+            <option
+              v-for="cat in channelsStore.categories"
+              :key="cat.id"
+              :value="cat.id"
+            >
               {{ cat.name }}
             </option>
           </select>
@@ -218,12 +292,26 @@ function logout() {
           @click="newChannelPrivate = !newChannelPrivate"
         >
           <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-dark-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            <svg
+              class="w-4 h-4 text-dark-400 shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
             </svg>
             <div>
-              <p class="text-sm font-medium text-dark-100">Приватный канал</p>
-              <p class="text-xs text-dark-500">Только приглашённые участники</p>
+              <p class="text-sm font-medium text-dark-100">
+                Приватный канал
+              </p>
+              <p class="text-xs text-dark-500">
+                Только приглашённые участники
+              </p>
             </div>
           </div>
           <div
@@ -238,10 +326,18 @@ function logout() {
         </div>
 
         <div class="flex gap-3 pt-2">
-          <Button variant="secondary" class="flex-1" @click="showCreateChannel = false">
+          <Button
+            variant="secondary"
+            class="flex-1"
+            @click="showCreateChannel = false"
+          >
             Отмена
           </Button>
-          <Button type="submit" :loading="creatingChannel" class="flex-1">
+          <Button
+            type="submit"
+            :loading="creatingChannel"
+            class="flex-1"
+          >
             Создать
           </Button>
         </div>
@@ -249,4 +345,5 @@ function logout() {
     </Modal>
   </aside>
 </template>
+
 

@@ -172,11 +172,13 @@ const isMentioned = computed(() => {
         :src="message.content.trim()"
         class="mt-1 rounded-lg max-w-xs max-h-48 object-contain"
         loading="lazy"
-      />
+      >
       <div
         v-else-if="isSingleEmoji"
         class="text-5xl leading-none mt-0.5 select-none"
-      >{{ message.content.trim() }}</div>
+      >
+        {{ message.content.trim() }}
+      </div>
       <div
         v-else
         class="text-dark-200 text-sm leading-relaxed break-words"
@@ -184,7 +186,10 @@ const isMentioned = computed(() => {
       />
       
       <!-- Reactions -->
-      <div v-if="reactions.length > 0" class="mt-1">
+      <div
+        v-if="reactions.length > 0"
+        class="mt-1"
+      >
         <ReactionBar
           :message-id="message.id"
           :reactions="reactions"
@@ -195,14 +200,27 @@ const isMentioned = computed(() => {
       <!-- Thread preview -->
       <button
         v-if="hasThread"
-        @click="openThread"
         class="mt-2 flex items-center gap-2 text-xs text-atlas-400 hover:text-atlas-300 transition-colors"
+        @click="openThread"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+          />
         </svg>
         <span class="font-medium">{{ threadStats.count }} {{ threadStats.count === 1 ? 'ответ' : 'ответа' }}</span>
-        <span v-if="threadStats.lastReplyUser" class="text-dark-500">{{ threadStats.lastReplyUser }}</span>
+        <span
+          v-if="threadStats.lastReplyUser"
+          class="text-dark-500"
+        >{{ threadStats.lastReplyUser }}</span>
         <!-- Unread indicator -->
         <span 
           v-if="hasUnreadInThread" 
@@ -226,8 +244,18 @@ const isMentioned = computed(() => {
           title="Реакция"
           @click.stop="openReactionPicker"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            />
           </svg>
         </button>
       </div>
@@ -249,12 +277,22 @@ const isMentioned = computed(() => {
         </template>
       </Teleport>
       <button
-        @click="openThread"
         class="p-2 rounded text-dark-500 hover:text-dark-100 hover:bg-dark-700"
         title="Создать тред"
+        @click="openThread"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+          />
         </svg>
       </button>
       <button
@@ -262,20 +300,30 @@ const isMentioned = computed(() => {
         title="Создать задачу из сообщения"
         @click="showTaskModal = true"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+        <svg
+          class="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+          />
         </svg>
       </button>
     </div>
 
-  <!-- Task creation modal -->
-  <TaskCreationModal
-    v-if="showTaskModal"
-    :message-id="message.id"
-    :initial-title="message.content.substring(0, 100)"
-    @close="showTaskModal = false"
-    @created="showTaskModal = false"
-  />
+    <!-- Task creation modal -->
+    <TaskCreationModal
+      v-if="showTaskModal"
+      :message-id="message.id"
+      :initial-title="message.content.substring(0, 100)"
+      @close="showTaskModal = false"
+      @created="showTaskModal = false"
+    />
   </div>
 </template>
 

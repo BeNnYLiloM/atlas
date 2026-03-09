@@ -2,7 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import type { NotificationLevel } from '@/types'
 
-const props = defineProps<{
+defineProps<{
   x: number
   y: number
   channelId: string
@@ -66,14 +66,27 @@ onUnmounted(() => document.removeEventListener('mousedown', onClickOutside))
       <div class="my-1 border-t border-dark-700" />
 
       <!-- Заглушить канал -->
-      <div class="relative" @mouseenter="submenu = 'mute'">
+      <div
+        class="relative"
+        @mouseenter="submenu = 'mute'"
+      >
         <button
           class="w-full flex items-center justify-between px-3 py-1.5 transition-colors"
           :class="submenu === 'mute' ? 'bg-dark-700 text-white' : 'text-dark-200 hover:bg-dark-700 hover:text-white'"
         >
           <span>Заглушить канал</span>
-          <svg class="w-3.5 h-3.5 text-dark-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          <svg
+            class="w-3.5 h-3.5 text-dark-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 5l7 7-7 7"
+            />
           </svg>
         </button>
 
@@ -94,7 +107,10 @@ onUnmounted(() => document.removeEventListener('mousedown', onClickOutside))
       </div>
 
       <!-- Параметры уведомлений -->
-      <div class="relative" @mouseenter="submenu = 'notifications'">
+      <div
+        class="relative"
+        @mouseenter="submenu = 'notifications'"
+      >
         <button
           class="w-full flex items-center justify-between px-3 py-1.5 transition-colors"
           :class="submenu === 'notifications' ? 'bg-dark-700 text-white' : 'text-dark-200 hover:bg-dark-700 hover:text-white'"
@@ -105,8 +121,18 @@ onUnmounted(() => document.removeEventListener('mousedown', onClickOutside))
               {{ notifOptions.find(o => o.value === notificationLevel)?.label }}
             </p>
           </div>
-          <svg class="w-3.5 h-3.5 text-dark-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          <svg
+            class="w-3.5 h-3.5 text-dark-400 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 5l7 7-7 7"
+            />
           </svg>
         </button>
 
@@ -130,11 +156,19 @@ onUnmounted(() => document.removeEventListener('mousedown', onClickOutside))
               fill="currentColor"
               viewBox="0 0 20 20"
             >
-              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+              <path
+                fill-rule="evenodd"
+                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                clip-rule="evenodd"
+              />
             </svg>
             <div class="text-left">
-              <p class="text-sm">{{ opt.label }}</p>
-              <p class="text-xs text-dark-500">{{ opt.description }}</p>
+              <p class="text-sm">
+                {{ opt.label }}
+              </p>
+              <p class="text-xs text-dark-500">
+                {{ opt.description }}
+              </p>
             </div>
           </button>
         </div>
@@ -161,3 +195,5 @@ onUnmounted(() => document.removeEventListener('mousedown', onClickOutside))
     </div>
   </Teleport>
 </template>
+
+

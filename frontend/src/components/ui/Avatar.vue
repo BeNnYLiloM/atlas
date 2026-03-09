@@ -67,7 +67,7 @@ const bgColor = computed(() => {
         'rounded-full object-cover',
         sizeClasses[props.size],
       ]"
-    />
+    >
     <div
       v-else
       :class="[

@@ -16,6 +16,8 @@ type MessageService struct {
 	channelRepo       repository.ChannelRepository
 	workspaceRepo     repository.WorkspaceRepository
 	channelMemberRepo repository.ChannelMemberRepository
+	permRepo          repository.ChannelPermissionRepository
+	roleRepo          repository.WorkspaceRoleRepository
 }
 
 func NewMessageService(
@@ -23,33 +25,24 @@ func NewMessageService(
 	channelRepo repository.ChannelRepository,
 	workspaceRepo repository.WorkspaceRepository,
 	channelMemberRepo repository.ChannelMemberRepository,
+	permRepo repository.ChannelPermissionRepository,
+	roleRepo repository.WorkspaceRoleRepository,
 ) *MessageService {
 	return &MessageService{
 		messageRepo:       messageRepo,
 		channelRepo:       channelRepo,
 		workspaceRepo:     workspaceRepo,
 		channelMemberRepo: channelMemberRepo,
+		permRepo:          permRepo,
+		roleRepo:          roleRepo,
 	}
 }
 
 // Create создает новое сообщение
 func (s *MessageService) Create(ctx context.Context, input domain.MessageCreate, userID string) (*domain.Message, error) {
-	// Получаем канал
-	channel, err := s.channelRepo.GetByID(ctx, input.ChannelID)
+	channel, member, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, input.ChannelID, userID)
 	if err != nil {
 		return nil, err
-	}
-	if channel == nil {
-		return nil, ErrChannelNotFound
-	}
-
-	// Проверяем членство в воркспейсе
-	member, err := s.workspaceRepo.GetMember(ctx, channel.WorkspaceID, userID)
-	if err != nil {
-		return nil, err
-	}
-	if member == nil {
-		return nil, ErrNotMember
 	}
 
 	// Slowmode: проверяем только для обычных сообщений (не тредов) и не для owner/admin
@@ -87,22 +80,8 @@ func (s *MessageService) Create(ctx context.Context, input domain.MessageCreate,
 
 // GetByChannelID возвращает сообщения канала
 func (s *MessageService) GetByChannelID(ctx context.Context, channelID, userID string, limit, offset int) ([]*domain.Message, error) {
-	// Получаем канал
-	channel, err := s.channelRepo.GetByID(ctx, channelID)
-	if err != nil {
+	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, channelID, userID); err != nil {
 		return nil, err
-	}
-	if channel == nil {
-		return nil, ErrChannelNotFound
-	}
-
-	// Проверяем членство
-	member, err := s.workspaceRepo.GetMember(ctx, channel.WorkspaceID, userID)
-	if err != nil {
-		return nil, err
-	}
-	if member == nil {
-		return nil, ErrNotMember
 	}
 
 	if limit <= 0 {
@@ -144,19 +123,8 @@ func (s *MessageService) GetThreadMessages(ctx context.Context, parentID, userID
 		return nil, ErrMessageNotFound
 	}
 
-	// Получаем канал
-	channel, err := s.channelRepo.GetByID(ctx, parent.ChannelID)
-	if err != nil {
+	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, parent.ChannelID, userID); err != nil {
 		return nil, err
-	}
-
-	// Проверяем членство
-	member, err := s.workspaceRepo.GetMember(ctx, channel.WorkspaceID, userID)
-	if err != nil {
-		return nil, err
-	}
-	if member == nil {
-		return nil, ErrNotMember
 	}
 
 	return s.messageRepo.GetThreadMessages(ctx, parentID)
@@ -170,6 +138,10 @@ func (s *MessageService) Update(ctx context.Context, messageID string, input dom
 	}
 	if message == nil {
 		return nil, ErrMessageNotFound
+	}
+
+	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, message.ChannelID, userID); err != nil {
+		return nil, err
 	}
 
 	// Только автор может редактировать сообщение
@@ -195,18 +167,9 @@ func (s *MessageService) Delete(ctx context.Context, messageID, userID string) (
 		return "", ErrMessageNotFound
 	}
 
-	// Получаем канал для проверки прав
-	channel, err := s.channelRepo.GetByID(ctx, message.ChannelID)
+	channel, member, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, message.ChannelID, userID)
 	if err != nil {
 		return "", err
-	}
-
-	member, err := s.workspaceRepo.GetMember(ctx, channel.WorkspaceID, userID)
-	if err != nil {
-		return "", err
-	}
-	if member == nil {
-		return "", ErrNotMember
 	}
 
 	// Автор или admin/owner могут удалять
@@ -220,7 +183,7 @@ func (s *MessageService) Delete(ctx context.Context, messageID, userID string) (
 		return "", err
 	}
 
-	return message.ChannelID, nil
+	return channel.ID, nil
 }
 
 // MarkThreadAsRead отмечает тред прочитанным
@@ -234,19 +197,8 @@ func (s *MessageService) MarkThreadAsRead(ctx context.Context, parentMessageID, 
 		return ErrMessageNotFound
 	}
 
-	// Получаем канал
-	channel, err := s.channelRepo.GetByID(ctx, parent.ChannelID)
-	if err != nil {
+	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, parent.ChannelID, userID); err != nil {
 		return err
-	}
-
-	// Проверяем членство
-	member, err := s.workspaceRepo.GetMember(ctx, channel.WorkspaceID, userID)
-	if err != nil {
-		return err
-	}
-	if member == nil {
-		return ErrNotMember
 	}
 
 	return s.channelMemberRepo.MarkThreadAsRead(ctx, userID, parentMessageID, lastMessageID)
@@ -263,19 +215,8 @@ func (s *MessageService) GetThreadUnreadCount(ctx context.Context, parentMessage
 		return 0, ErrMessageNotFound
 	}
 
-	// Получаем канал
-	channel, err := s.channelRepo.GetByID(ctx, parent.ChannelID)
-	if err != nil {
+	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, parent.ChannelID, userID); err != nil {
 		return 0, err
-	}
-
-	// Проверяем членство
-	member, err := s.workspaceRepo.GetMember(ctx, channel.WorkspaceID, userID)
-	if err != nil {
-		return 0, err
-	}
-	if member == nil {
-		return 0, ErrNotMember
 	}
 
 	return s.channelMemberRepo.GetThreadUnreadCount(ctx, userID, parentMessageID)

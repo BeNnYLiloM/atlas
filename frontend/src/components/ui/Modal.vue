@@ -55,15 +55,30 @@ function onKeydown(event: KeyboardEvent) {
           role="dialog"
           aria-modal="true"
         >
-          <div v-if="props.title" class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-white">{{ props.title }}</h2>
+          <div
+            v-if="props.title"
+            class="flex items-center justify-between mb-4"
+          >
+            <h2 class="text-lg font-semibold text-white">
+              {{ props.title }}
+            </h2>
             <button
               type="button"
               class="btn-ghost p-1 rounded-lg"
               @click="emit('close')"
             >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              <svg
+                class="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
