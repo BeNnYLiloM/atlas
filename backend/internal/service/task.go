@@ -7,11 +7,18 @@ import (
 	"github.com/google/uuid"
 	"github.com/your-org/atlas/backend/internal/domain"
 	"github.com/your-org/atlas/backend/internal/repository"
-	"github.com/your-org/atlas/backend/internal/repository/postgres"
 )
 
+type taskRepository interface {
+	Create(ctx context.Context, task *domain.Task) error
+	GetByWorkspace(ctx context.Context, workspaceID string, status string) ([]*domain.Task, error)
+	GetByID(ctx context.Context, id string) (*domain.Task, error)
+	Update(ctx context.Context, id string, update *domain.TaskUpdate) error
+	Delete(ctx context.Context, id string) error
+}
+
 type TaskService struct {
-	repo          *postgres.TaskRepository
+	repo          taskRepository
 	workspaceRepo repository.WorkspaceRepository
 	messageRepo   repository.MessageRepository
 	channelRepo   repository.ChannelRepository
@@ -20,7 +27,7 @@ type TaskService struct {
 }
 
 func NewTaskService(
-	repo *postgres.TaskRepository,
+	repo taskRepository,
 	workspaceRepo repository.WorkspaceRepository,
 	messageRepo repository.MessageRepository,
 	channelRepo repository.ChannelRepository,
