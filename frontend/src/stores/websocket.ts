@@ -7,6 +7,7 @@ import { useWorkspaceStore } from './workspace'
 import { useAuthStore } from './auth'
 import { playNotificationSound, isSoundEnabled, isMentionSoundEnabled } from '@/utils/notificationSound'
 import { createAuthenticatedWebSocket } from '@/api/websocket'
+import { ensureAccessToken } from '@/api/session'
 import type { Message, Channel, ChannelCategory } from '@/types'
 
 function showBrowserNotification(title: string, body: string, channelId: string) {
@@ -34,15 +35,15 @@ export const useWebSocketStore = defineStore('websocket', () => {
   const reconnectAttempts = ref(0)
   const maxReconnectAttempts = 5
 
-  function connect() {
+  async function connect() {
     if (socket.value?.readyState === WebSocket.OPEN) {
       console.log('[WS] Already connected')
       return
     }
 
-    const token = localStorage.getItem('atlas_token')
+    const token = await ensureAccessToken()
     if (!token) {
-      console.warn('[WS] No token found')
+      console.warn('[WS] No access token available for realtime connection')
       return
     }
 
@@ -264,7 +265,9 @@ export const useWebSocketStore = defineStore('websocket', () => {
     reconnectAttempts.value++
 
     console.log(`[WS] Reconnecting in ${delay}ms (attempt ${reconnectAttempts.value})`)
-    setTimeout(connect, delay)
+    setTimeout(() => {
+      void connect()
+    }, delay)
   }
 
   function disconnect() {

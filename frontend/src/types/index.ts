@@ -196,20 +196,6 @@ export function defaultPermissions(): RolePermissions {
 
 // --- Channel Permissions ---
 
-export interface ChannelAllowedRole {
-  channel_id: string
-  role_id: string
-  role_name: string
-  role_color: string
-}
-
-export interface ChannelAllowedUser {
-  channel_id: string
-  user_id: string
-  display_name: string
-  avatar_url: string | null
-}
-
 export interface ChannelPermissions {
   roles: ChannelAllowedRole[]
   users: ChannelAllowedUser[]
@@ -242,11 +228,15 @@ export interface MessageUpdate {
 // Auth types
 export interface AuthTokens {
   access_token: string
-  refresh_token?: string
+  expires_at: number
 }
 
 export interface AuthResponse {
   user: User
+  tokens: AuthTokens
+}
+
+export interface RefreshResponse {
   tokens: AuthTokens
 }
 
@@ -272,4 +262,3 @@ export interface PresenceEvent {
   user_id: string
   status: 'online' | 'offline' | 'away'
 }
-

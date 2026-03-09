@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 )
 
 type Config struct {
@@ -15,8 +16,9 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port string
-	Mode string // development, production
+	Port           string
+	Mode           string
+	AllowedOrigins []string
 }
 
 type DatabaseConfig struct {
@@ -52,15 +54,32 @@ type LiveKitConfig struct {
 }
 
 type JWTConfig struct {
-	Secret     string
-	ExpireHour int
+	Secret                string
+	AccessTokenTTLMinutes int
+	RefreshTokenTTLDays   int
+	Issuer                string
+	Audience              string
+	RefreshCookieName     string
+	RefreshCookieDomain   string
+	RefreshCookieSecure   bool
 }
 
 func Load() *Config {
+	serverMode := getEnv("MODE", "development")
+
 	return &Config{
 		Server: ServerConfig{
 			Port: getEnv("PORT", "8080"),
-			Mode: getEnv("MODE", "development"),
+			Mode: serverMode,
+			AllowedOrigins: getCSVEnv(
+				"CORS_ALLOWED_ORIGINS",
+				[]string{
+					"http://localhost:5173",
+					"http://127.0.0.1:5173",
+					"http://localhost:4173",
+					"http://127.0.0.1:4173",
+				},
+			),
 		},
 		Database: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -91,8 +110,14 @@ func Load() *Config {
 			APISecret: getEnv("LIVEKIT_API_SECRET", "secret_replace_in_production_min_32_chars!!"),
 		},
 		JWT: JWTConfig{
-			Secret:     getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
-			ExpireHour: 24,
+			Secret:                getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
+			AccessTokenTTLMinutes: getIntEnv("JWT_ACCESS_TTL_MINUTES", 15),
+			RefreshTokenTTLDays:   getIntEnv("JWT_REFRESH_TTL_DAYS", 14),
+			Issuer:                getEnv("JWT_ISSUER", "atlas"),
+			Audience:              getEnv("JWT_AUDIENCE", "atlas-web"),
+			RefreshCookieName:     getEnv("JWT_REFRESH_COOKIE_NAME", "atlas_refresh_token"),
+			RefreshCookieDomain:   getEnv("JWT_REFRESH_COOKIE_DOMAIN", ""),
+			RefreshCookieSecure:   getBoolEnv("JWT_REFRESH_COOKIE_SECURE", serverMode == "production"),
 		},
 	}
 }
@@ -116,4 +141,38 @@ func getBoolEnv(key string, defaultValue bool) bool {
 	}
 
 	return parsed
+}
+
+func getIntEnv(key string, defaultValue int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return defaultValue
+	}
+
+	return parsed
+}
+
+func getCSVEnv(key string, defaultValue []string) []string {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return defaultValue
+	}
+
+	parts := strings.Split(value, ",")
+	origins := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			origins = append(origins, trimmed)
+		}
+	}
+	if len(origins) == 0 {
+		return defaultValue
+	}
+	return origins
 }

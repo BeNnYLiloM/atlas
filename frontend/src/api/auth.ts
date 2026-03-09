@@ -1,14 +1,25 @@
 import apiClient from './client'
-import type { UserCreate, UserLogin, AuthResponse, User, ApiResponse } from '@/types'
+import type { UserCreate, UserLogin, AuthResponse, User, ApiResponse, RefreshResponse } from '@/types'
 
 export const authApi = {
   async register(data: UserCreate): Promise<AuthResponse> {
-    const response = await apiClient.post<ApiResponse<AuthResponse>>('/auth/register', data)
+    const response = await apiClient.post<ApiResponse<AuthResponse>>('/auth/register', data, {
+      skipAuthRefresh: true,
+    })
     return response.data.data
   },
 
   async login(data: UserLogin): Promise<AuthResponse> {
-    const response = await apiClient.post<ApiResponse<AuthResponse>>('/auth/login', data)
+    const response = await apiClient.post<ApiResponse<AuthResponse>>('/auth/login', data, {
+      skipAuthRefresh: true,
+    })
+    return response.data.data
+  },
+
+  async refresh(): Promise<RefreshResponse> {
+    const response = await apiClient.post<ApiResponse<RefreshResponse>>('/auth/refresh', undefined, {
+      skipAuthRefresh: true,
+    })
     return response.data.data
   },
 
@@ -18,7 +29,12 @@ export const authApi = {
   },
 
   async logout(): Promise<void> {
-    // Бэкенд не имеет эндпоинта logout — просто удаляем токен локально
+    await apiClient.post('/auth/logout', undefined, {
+      skipAuthRefresh: true,
+    })
+  },
+
+  async logoutAll(): Promise<void> {
+    await apiClient.post('/auth/logout-all')
   },
 }
-

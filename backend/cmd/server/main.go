@@ -24,15 +24,11 @@ import (
 func main() {
 	log.Println("Starting Atlas server...")
 
-	// Загружаем конфигурацию
 	cfg := config.Load()
-
-	// Устанавливаем режим Gin
 	if cfg.Server.Mode == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// Подключаемся к PostgreSQL
 	ctx := context.Background()
 	db, err := database.NewPostgresPool(ctx, cfg.Database)
 	if err != nil {
@@ -41,13 +37,12 @@ func main() {
 	defer db.Close()
 	log.Println("Connected to PostgreSQL")
 
-	// Применяем миграции
 	if err := database.RunMigrations(cfg.Database); err != nil {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
-	// Инициализируем репозитории
 	userRepo := postgres.NewUserRepo(db)
+	authSessionRepo := postgres.NewAuthSessionRepo(db)
 	workspaceRepo := postgres.NewWorkspaceRepo(db)
 	channelRepo := postgres.NewChannelRepo(db)
 	channelCategoryRepo := postgres.NewChannelCategoryRepo(db)
@@ -61,12 +56,10 @@ func main() {
 	reactionRepo := postgres.NewReactionRepository(db)
 	taskRepo := postgres.NewTaskRepository(db)
 
-	// Инициализируем WebSocket hub (до сервисов, т.к. некоторые зависят от него)
 	wsHub := ws.NewHub()
 	go wsHub.Run()
 
-	// Инициализируем сервисы
-	authService := service.NewAuthService(userRepo, cfg.JWT)
+	authService := service.NewAuthService(userRepo, authSessionRepo, cfg.JWT)
 	workspaceService := service.NewWorkspaceService(workspaceRepo, channelRepo, roleRepo)
 	categoryService := service.NewChannelCategoryService(channelCategoryRepo, categoryPermRepo, channelRepo, workspaceRepo, roleRepo)
 	roleService := service.NewWorkspaceRoleService(roleRepo, workspaceRepo)
@@ -77,7 +70,6 @@ func main() {
 	reactionService := service.NewReactionService(reactionRepo, wsHub)
 	taskService := service.NewTaskService(taskRepo, workspaceRepo, messageRepo, channelRepo, roleRepo, channelPermRepo)
 
-	// MinIO storage (не блокируем старт если MinIO недоступен)
 	minioStorage, minioErr := storage.NewMinIOStorage(
 		cfg.MinIO.Endpoint,
 		cfg.MinIO.AccessKey,
@@ -93,31 +85,23 @@ func main() {
 		fileService = service.NewFileService(fileRepo, minioStorage)
 	}
 
-	// Создаем роутер
 	router := gin.Default()
+	router.Use(middleware.SecurityHeaders())
+	router.Use(middleware.CORS(cfg.Server.AllowedOrigins))
 
-	// Middleware
-	router.Use(middleware.CORS())
-
-	// Health check
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	// API группа
 	api := router.Group("/api/v1")
-
-	// Auth middleware
 	authMiddleware := middleware.AuthMiddleware(authService)
 
-	// Регистрируем HTTP handlers
-	authHandler := handler.NewAuthHandler(authService)
+	authHandler := handler.NewAuthHandler(authService, cfg.JWT)
 	authHandler.RegisterRoutes(api, authMiddleware)
 
 	channelHandler := handler.NewChannelHandler(channelService, wsHub)
 	messageHandler := handler.NewMessageHandler(messageService, channelService, wsHub)
 	messageHandler.RegisterRoutes(api, authMiddleware)
-
 	channelHandler.RegisterWithMessages(api, authMiddleware, messageHandler)
 
 	workspaceHandler := handler.NewWorkspaceHandler(workspaceService, fileService, wsHub)
@@ -125,7 +109,6 @@ func main() {
 	categoryHandler := handler.NewChannelCategoryHandler(categoryService, channelPermRepo, wsHub)
 	workspaceHandler.RegisterRoutes(api, authMiddleware, channelHandler, roleHandler, categoryHandler)
 
-	// Новые handlers
 	searchHandler := handler.NewSearchHandler(searchService)
 	reactionHandler := handler.NewReactionHandler(reactionService)
 	taskHandler := handler.NewTaskHandler(taskService)
@@ -134,24 +117,16 @@ func main() {
 	protected := api.Group("")
 	protected.Use(authMiddleware)
 	{
-		// Поиск
 		protected.GET("/search", searchHandler.Search)
-
-		// Реакции
 		protected.POST("/messages/:id/reactions", reactionHandler.Add)
 		protected.DELETE("/messages/:id/reactions/:emoji", reactionHandler.Remove)
 		protected.GET("/messages/:id/reactions", reactionHandler.GetReactions)
-
-		// Задачи
 		protected.POST("/tasks", taskHandler.Create)
 		protected.GET("/tasks", taskHandler.List)
 		protected.PATCH("/tasks/:id", taskHandler.Update)
 		protected.DELETE("/tasks/:id", taskHandler.Delete)
-
-		// Звонки (LiveKit)
 		protected.POST("/calls/join", callsHandler.JoinCall)
 
-		// Файлы
 		if fileService != nil {
 			fileHandler := handler.NewFileHandler(fileService)
 			protected.POST("/files/upload", fileHandler.Upload)
@@ -160,11 +135,9 @@ func main() {
 		}
 	}
 
-	// WebSocket handler
-	wsHandler := ws.NewHandler(wsHub, authService, channelService)
+	wsHandler := ws.NewHandler(wsHub, authService, channelService, cfg.Server.AllowedOrigins)
 	wsHandler.RegisterRoutes(router)
 
-	// Создаем HTTP сервер
 	srv := &http.Server{
 		Addr:         ":" + cfg.Server.Port,
 		Handler:      router,
@@ -173,7 +146,6 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Запускаем сервер в горутине
 	go func() {
 		log.Printf("Server listening on :%s", cfg.Server.Port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -181,7 +153,6 @@ func main() {
 		}
 	}()
 
-	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit

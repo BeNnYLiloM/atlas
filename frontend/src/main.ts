@@ -1,16 +1,24 @@
 import { createApp } from 'vue'
-import { createPinia } from 'pinia'
 import router from './router'
 import App from './App.vue'
+import { pinia } from './plugins/pinia'
+import { useAuthStore } from '@/stores'
 import './assets/main.css'
 import './assets/themes/dark.css'
 import './assets/themes/light.css'
 import './assets/themes/high-contrast.css'
 
-const app = createApp(App)
+async function bootstrap() {
+  const app = createApp(App)
 
-app.use(createPinia())
-app.use(router)
+  app.use(pinia)
 
-app.mount('#app')
+  const authStore = useAuthStore(pinia)
+  await authStore.initialize()
 
+  app.use(router)
+  await router.isReady()
+  app.mount('#app')
+}
+
+bootstrap()
