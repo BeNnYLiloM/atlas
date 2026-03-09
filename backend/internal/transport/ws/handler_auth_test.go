@@ -46,3 +46,31 @@ func TestExtractTokenFromWebSocketRequest_DeniesMissingAuthProtocol(t *testing.T
 		t.Fatal("expected error when auth protocol is missing")
 	}
 }
+
+func TestHandlerCheckOrigin_AllowsConfiguredOrigin(t *testing.T) {
+	handler := NewHandler(nil, nil, nil, []string{"https://app.atlas.local"})
+	req, err := http.NewRequest(http.MethodGet, "/ws", nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+	req.Host = "api.atlas.local"
+	req.Header.Set("Origin", "https://app.atlas.local")
+
+	if !handler.checkOrigin(req) {
+		t.Fatal("expected configured origin to be allowed")
+	}
+}
+
+func TestHandlerCheckOrigin_DeniesUnknownOrigin(t *testing.T) {
+	handler := NewHandler(nil, nil, nil, []string{"https://app.atlas.local"})
+	req, err := http.NewRequest(http.MethodGet, "/ws", nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+	req.Host = "api.atlas.local"
+	req.Header.Set("Origin", "https://evil.example")
+
+	if handler.checkOrigin(req) {
+		t.Fatal("expected unknown origin to be denied")
+	}
+}

@@ -18,46 +18,33 @@ const (
 	wsTokenProtocolPrefix = "bearer."
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	Subprotocols:    []string{wsAuthProtocol},
-	CheckOrigin: func(r *http.Request) bool {
-		origin := r.Header.Get("Origin")
-		if origin == "" {
-			return true
-		}
-
-		originURL, err := url.Parse(origin)
-		if err != nil {
-			return false
-		}
-		if strings.EqualFold(originURL.Host, r.Host) {
-			return true
-		}
-
-		host := originURL.Hostname()
-		return host == "localhost" || host == "127.0.0.1"
-	},
-}
-
 type AccessChecker interface {
 	CanAccessWorkspace(ctx context.Context, workspaceID, userID string) (bool, error)
 	CanAccessChannel(ctx context.Context, channelID, userID string) (bool, error)
 }
 
 type Handler struct {
-	hub         *Hub
-	authService *service.AuthService
-	access      AccessChecker
+	hub            *Hub
+	authService    *service.AuthService
+	access         AccessChecker
+	allowedOrigins []string
+	upgrader       websocket.Upgrader
 }
 
-func NewHandler(hub *Hub, authService *service.AuthService, access AccessChecker) *Handler {
-	return &Handler{
-		hub:         hub,
-		authService: authService,
-		access:      access,
+func NewHandler(hub *Hub, authService *service.AuthService, access AccessChecker, allowedOrigins []string) *Handler {
+	h := &Handler{
+		hub:            hub,
+		authService:    authService,
+		access:         access,
+		allowedOrigins: allowedOrigins,
 	}
+	h.upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		Subprotocols:    []string{wsAuthProtocol},
+		CheckOrigin:     h.checkOrigin,
+	}
+	return h
 }
 
 func extractTokenFromWebSocketRequest(r *http.Request) (string, error) {
@@ -100,7 +87,6 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	// Валидируем токен
 	claims, err := h.authService.ValidateToken(token)
 	if err != nil {
 		log.Printf("[WS] Invalid token: %v", err)
@@ -110,8 +96,7 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 
 	log.Printf("[WS] User %s attempting to connect", claims.UserID)
 
-	// Апгрейдим соединение до WebSocket
-	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Printf("[WS] WebSocket upgrade error: %v", err)
 		return
@@ -122,9 +107,32 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 
 	log.Printf("[WS] Client connected: userID=%s, clientID=%s", claims.UserID, client.ID)
 
-	// Запускаем горутины для чтения и записи
 	go client.WritePump()
 	go client.ReadPump()
+}
+
+func (h *Handler) checkOrigin(r *http.Request) bool {
+	origin := strings.TrimSpace(r.Header.Get("Origin"))
+	if origin == "" {
+		return true
+	}
+
+	originURL, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	if strings.EqualFold(originURL.Host, r.Host) {
+		return true
+	}
+
+	for _, allowedOrigin := range h.allowedOrigins {
+		if strings.EqualFold(strings.TrimSpace(allowedOrigin), origin) {
+			return true
+		}
+	}
+
+	host := originURL.Hostname()
+	return host == "localhost" || host == "127.0.0.1"
 }
 
 // RegisterRoutes регистрирует WebSocket маршрут

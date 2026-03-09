@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { pinia } from '@/plugins/pinia'
+import { useAuthStore } from '@/stores'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -44,19 +46,21 @@ const router = createRouter({
   routes,
 })
 
-// Navigation guard для проверки авторизации
-router.beforeEach((to, _from, next) => {
-  const token = localStorage.getItem('atlas_token')
-  const isAuthenticated = !!token
+router.beforeEach(async (to) => {
+  const authStore = useAuthStore(pinia)
 
-  if (to.meta.requiresAuth && !isAuthenticated) {
-    next('/login')
-  } else if (to.meta.guest && isAuthenticated) {
-    next('/')
-  } else {
-    next()
+  if (!authStore.initialized) {
+    await authStore.initialize()
   }
+
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    return '/login'
+  }
+  if (to.meta.guest && authStore.isAuthenticated) {
+    return '/'
+  }
+
+  return true
 })
 
 export default router
-

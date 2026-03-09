@@ -1,14 +1,16 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import { authApi } from '@/api'
+import { applyAuthTokens, clearAccessToken, getAccessToken, refreshAccessToken } from '@/api/session'
 import type { User, UserCreate, UserLogin } from '@/types'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
-  const token = ref<string | null>(localStorage.getItem('atlas_token'))
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const initialized = ref(false)
 
+  const token = computed(() => getAccessToken())
   const isAuthenticated = computed(() => !!token.value && !!user.value)
 
   async function register(data: UserCreate) {
@@ -16,9 +18,8 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
     try {
       const response = await authApi.register(data)
-      token.value = response.tokens.access_token
+      applyAuthTokens(response.tokens)
       user.value = response.user
-      localStorage.setItem('atlas_token', response.tokens.access_token)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Ошибка регистрации'
       throw e
@@ -32,13 +33,34 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
     try {
       const response = await authApi.login(data)
-      token.value = response.tokens.access_token
+      applyAuthTokens(response.tokens)
       user.value = response.user
-      localStorage.setItem('atlas_token', response.tokens.access_token)
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Ошибка входа'
       throw e
     } finally {
+      loading.value = false
+    }
+  }
+
+  async function initialize() {
+    if (initialized.value) {
+      return
+    }
+
+    loading.value = true
+    error.value = null
+    try {
+      const nextToken = await refreshAccessToken()
+      if (!nextToken) {
+        clearState()
+        return
+      }
+      user.value = await authApi.me()
+    } catch {
+      clearState()
+    } finally {
+      initialized.value = true
       loading.value = false
     }
   }
@@ -49,16 +71,34 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       user.value = await authApi.me()
     } catch {
-      logout()
+      clearState()
+      throw new Error('failed to fetch user')
     } finally {
       loading.value = false
     }
   }
 
-  function logout() {
+  async function logout() {
+    try {
+      await authApi.logout()
+    } catch {
+      // Локально завершаем сессию даже если запрос logout не дошел.
+    } finally {
+      clearState()
+    }
+  }
+
+  async function logoutAll() {
+    try {
+      await authApi.logoutAll()
+    } finally {
+      clearState()
+    }
+  }
+
+  function clearState() {
     user.value = null
-    token.value = null
-    localStorage.removeItem('atlas_token')
+    clearAccessToken()
   }
 
   return {
@@ -66,11 +106,13 @@ export const useAuthStore = defineStore('auth', () => {
     token,
     loading,
     error,
+    initialized,
     isAuthenticated,
     register,
     login,
+    initialize,
     fetchUser,
     logout,
+    logoutAll,
   }
 })
-

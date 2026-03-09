@@ -15,6 +15,16 @@ type UserRepository interface {
 	Update(ctx context.Context, user *domain.User) error
 }
 
+// AuthSessionRepository - интерфейс для управления refresh-сессиями.
+type AuthSessionRepository interface {
+	Create(ctx context.Context, session *domain.AuthSession) error
+	GetByRefreshTokenHash(ctx context.Context, hash string) (*domain.AuthSession, error)
+	Rotate(ctx context.Context, currentSessionID string, nextSession *domain.AuthSession) error
+	RevokeByID(ctx context.Context, sessionID string) error
+	RevokeFamily(ctx context.Context, familyID string) error
+	RevokeAllByUserID(ctx context.Context, userID string) error
+}
+
 // WorkspaceRepository - интерфейс для работы с воркспейсами
 type WorkspaceRepository interface {
 	Create(ctx context.Context, workspace *domain.Workspace) error

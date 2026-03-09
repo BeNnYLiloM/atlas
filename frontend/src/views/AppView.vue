@@ -14,11 +14,9 @@ const wsStore = useWebSocketStore()
 const uiStore = useUIStore()
 const router = useRouter()
 
-// Инициализируем тему при загрузке
 uiStore.initTheme()
 
 function onGlobalKeydown(e: KeyboardEvent) {
-  // Alt+↑/↓ - переключение каналов
   if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
     e.preventDefault()
     const textChans = channelsStore.textChannels
@@ -40,7 +38,13 @@ function onGlobalKeydown(e: KeyboardEvent) {
 }
 
 onMounted(async () => {
-  await authStore.fetchUser()
+  if (!authStore.user && authStore.token) {
+    await authStore.fetchUser()
+  }
+  if (!authStore.isAuthenticated) {
+    return
+  }
+
   await workspaceStore.fetchWorkspaces()
   wsStore.connect()
   document.addEventListener('keydown', onGlobalKeydown)
@@ -51,16 +55,13 @@ onUnmounted(() => {
   document.removeEventListener('keydown', onGlobalKeydown)
 })
 
-// При смене воркспейса загружаем каналы и подписываемся на workspace
 watch(
   () => workspaceStore.currentWorkspaceId,
   async (newWorkspaceId, oldWorkspaceId) => {
-    // Отписываемся от старого workspace
     if (oldWorkspaceId) {
       wsStore.unsubscribeFromWorkspace(oldWorkspaceId)
     }
-    
-    // Подписываемся на новый workspace и загружаем каналы
+
     if (newWorkspaceId) {
       wsStore.subscribeToWorkspace(newWorkspaceId)
       await Promise.all([
@@ -75,12 +76,9 @@ watch(
 
 <template>
   <div class="flex h-screen bg-dark-950">
-    <!-- Sidebar -->
     <Sidebar />
 
-    <!-- Main content -->
     <main class="flex-1 flex flex-col min-w-0">
-      <!-- Top bar with search -->
       <div class="h-12 flex items-center px-4 border-b border-dark-800 bg-dark-950 flex-shrink-0">
         <div class="flex-1" />
         <SearchBar />
@@ -89,7 +87,6 @@ watch(
       <RouterView />
     </main>
 
-    <!-- Глобальные модалки -->
     <ShortcutsModal />
   </div>
 </template>

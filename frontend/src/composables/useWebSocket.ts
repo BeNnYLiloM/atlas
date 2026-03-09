@@ -1,6 +1,7 @@
 import { ref, onUnmounted } from 'vue'
 import { useMessagesStore } from '@/stores'
 import { createAuthenticatedWebSocket } from '@/api/websocket'
+import { ensureAccessToken } from '@/api/session'
 import type { Message } from '@/types'
 
 interface WSEvent {
@@ -16,8 +17,8 @@ export function useWebSocket() {
 
   const messagesStore = useMessagesStore()
 
-  function connect() {
-    const token = localStorage.getItem('atlas_token')
+  async function connect() {
+    const token = await ensureAccessToken()
     if (!token) return
 
     socket.value = createAuthenticatedWebSocket(token)
@@ -86,7 +87,9 @@ export function useWebSocket() {
     reconnectAttempts.value++
 
     console.log(`[WS] Reconnecting in ${delay}ms (attempt ${reconnectAttempts.value})`)
-    setTimeout(connect, delay)
+    setTimeout(() => {
+      void connect()
+    }, delay)
   }
 
   function disconnect() {

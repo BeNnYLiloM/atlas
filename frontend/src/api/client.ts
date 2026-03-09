@@ -1,11 +1,16 @@
 import axios from 'axios'
-import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
+import type { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios'
+import { clearAccessToken, getAccessToken, getApiBaseUrl, refreshAccessToken } from './session'
 
-const configuredApiUrl = import.meta.env.VITE_API_URL?.trim()
+interface RetriableRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean
+  skipAuthRefresh?: boolean
+}
 
 const apiClient: AxiosInstance = axios.create({
-  baseURL: configuredApiUrl || '/api/v1',
+  baseURL: getApiBaseUrl(),
   timeout: 10000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -13,7 +18,7 @@ const apiClient: AxiosInstance = axios.create({
 
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('atlas_token')
+    const token = getAccessToken()
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`
     }
@@ -24,12 +29,42 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('atlas_token')
-      window.location.href = '/login'
+  async (error: AxiosError) => {
+    const originalRequest = error.config as RetriableRequestConfig | undefined
+    if (!originalRequest) {
+      return Promise.reject(error)
     }
-    return Promise.reject(error)
+
+    const isUnauthorized = error.response?.status === 401
+    const isAuthLifecycleRequest =
+      originalRequest.url?.includes('/auth/login') ||
+      originalRequest.url?.includes('/auth/register') ||
+      originalRequest.url?.includes('/auth/refresh') ||
+      originalRequest.url?.includes('/auth/logout')
+
+    if (!isUnauthorized || originalRequest._retry || originalRequest.skipAuthRefresh || isAuthLifecycleRequest) {
+      if (isUnauthorized && !isAuthLifecycleRequest) {
+        clearAccessToken()
+        if (window.location.pathname !== '/login') {
+          window.location.assign('/login')
+        }
+      }
+      return Promise.reject(error)
+    }
+
+    originalRequest._retry = true
+    const nextToken = await refreshAccessToken()
+    if (!nextToken) {
+      clearAccessToken()
+      if (window.location.pathname !== '/login') {
+        window.location.assign('/login')
+      }
+      return Promise.reject(error)
+    }
+
+    originalRequest.headers = originalRequest.headers ?? {}
+    originalRequest.headers.Authorization = `Bearer ${nextToken}`
+    return apiClient(originalRequest)
   }
 )
 
