@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .log { border: 1px solid #ccc; padding: 10px; height: 400px; overflow-y: scroll; margin: 10px 0; background: #f5f5f5; }
+        button { padding: 10px 20px; margin: 5px; }
+        input { padding: 5px; width: 300px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h2>Atlas WebSocket Test</h2>
+    
+    <div>
+        <label>Token: <input type="text" id="token" placeholder="Вставьте токен из localStorage"></label>
+        <button onclick="connectWS()">Connect</button>
+        <button onclick="disconnectWS()">Disconnect</button>
+    </div>
+    
+    <div>
+        <label>Channel ID: <input type="text" id="channelId" placeholder="UUID канала"></label>
+        <button onclick="subscribe()">Subscribe</button>
+        <button onclick="unsubscribe()">Unsubscribe</button>
+    </div>
+    
+    <div>
+        <label>Message: <input type="text" id="message" placeholder="Текст сообщения"></label>
+        <button onclick="sendMessage()">Send via API</button>
+    </div>
+    
+    <div class="log" id="log"></div>
+    
+    <script>
+        let ws = null;
+        let token = '';
+        
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const className = type;
+            logEl.innerHTML += `<div class="${className}">[${time}] ${message}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+            console.log(`[${time}] ${message}`);
+        }
+        
+        // Автоматически загружаем токен из localStorage если есть
+        window.onload = function() {
+            const savedToken = localStorage.getItem('atlas_token');
+            if (savedToken) {
+                document.getElementById('token').value = savedToken;
+                log('Token loaded from localStorage', 'success');
+            }
+        };
+        
+        function connectWS() {
+            token = document.getElementById('token').value;
+            if (!token) {
+                log('Please enter token', 'error');
+                return;
+            }
+            
+            if (ws) {
+                log('Already connected', 'error');
+                return;
+            }
+            
+            const wsUrl = `ws://${window.location.host}/ws?token=${token}`;
+            log(`Connecting to: ${wsUrl}`, 'info');
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                log('✓ WebSocket Connected!', 'success');
+            };
+            
+            ws.onmessage = (event) => {
+                log(`← Received: ${event.data}`, 'success');
+                try {
+                    const data = JSON.parse(event.data);
+                    log(`  Type: ${data.type}, Payload: ${JSON.stringify(data.payload)}`, 'info');
+                } catch (e) {
+                    log(`  Parse error: ${e.message}`, 'error');
+                }
+            };
+            
+            ws.onerror = (error) => {
+                log(`✗ WebSocket Error: ${error}`, 'error');
+            };
+            
+            ws.onclose = () => {
+                log('✗ WebSocket Disconnected', 'error');
+                ws = null;
+            };
+        }
+        
+        function disconnectWS() {
+            if (ws) {
+                ws.close();
+                ws = null;
+                log('Disconnected manually', 'info');
+            }
+        }
+        
+        function subscribe() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('WebSocket not connected', 'error');
+                return;
+            }
+            
+            const channelId = document.getElementById('channelId').value;
+            if (!channelId) {
+                log('Please enter channel ID', 'error');
+                return;
+            }
+            
+            const message = {
+                event: 'subscribe',
+                data: { channel_id: channelId }
+            };
+            
+            ws.send(JSON.stringify(message));
+            log(`→ Sent subscribe: ${JSON.stringify(message)}`, 'info');
+        }
+        
+        function unsubscribe() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('WebSocket not connected', 'error');
+                return;
+            }
+            
+            const channelId = document.getElementById('channelId').value;
+            if (!channelId) {
+                log('Please enter channel ID', 'error');
+                return;
+            }
+            
+            const message = {
+                event: 'unsubscribe',
+                data: { channel_id: channelId }
+            };
+            
+            ws.send(JSON.stringify(message));
+            log(`→ Sent unsubscribe: ${JSON.stringify(message)}`, 'info');
+        }
+        
+        async function sendMessage() {
+            const channelId = document.getElementById('channelId').value;
+            const content = document.getElementById('message').value;
+            token = document.getElementById('token').value;
+            
+            if (!channelId || !content || !token) {
+                log('Please fill all fields', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        channel_id: channelId,
+                        content: content
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    log(`✓ Message sent via API: ${result.data.id}`, 'success');
+                    log(`  Should receive via WebSocket now...`, 'info');
+                } else {
+                    log(`✗ API Error: ${JSON.stringify(result)}`, 'error');
+                }
+            } catch (e) {
+                log(`✗ Network error: ${e.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

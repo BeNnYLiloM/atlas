@@ -1,0 +1,28 @@
+version: '3.8'
+
+# Расширение основного docker-compose для разработки
+# Использование: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  minio:
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  # Adminer для просмотра БД
+  adminer:
+    image: adminer:latest
+    container_name: atlas-adminer
+    ports:
+      - "8081:8080"
+    depends_on:
+      - postgres
+

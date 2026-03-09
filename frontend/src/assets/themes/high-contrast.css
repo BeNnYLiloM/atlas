@@ -1,0 +1,18 @@
+:root[data-theme="high-contrast"] {
+  --color-bg-primary: #000000;
+  --color-bg-secondary: #0d1117;
+  --color-bg-tertiary: #161b22;
+  --color-bg-hover: #21262d;
+  --color-border: #ffffff;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #e6edf3;
+  --color-text-muted: #8b949e;
+  --color-accent: #58a6ff;
+  --color-accent-hover: #79c0ff;
+  --color-success: #56d364;
+  --color-danger: #ff7b72;
+  --color-warning: #e3b341;
+  --color-online: #56d364;
+  --color-away: #e3b341;
+  --color-offline: #8b949e;
+}

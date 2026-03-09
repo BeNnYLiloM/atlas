@@ -1,0 +1,275 @@
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { channelsApi, categoriesApi } from '@/api'
+import type { Channel, ChannelCategory, ChannelCreate, ChannelUpdate, ChannelWithUnread, NotificationLevel } from '@/types'
+
+export const useChannelsStore = defineStore('channels', () => {
+  const channels = ref<ChannelWithUnread[]>([])
+  const categories = ref<ChannelCategory[]>([])
+  const currentChannelId = ref<string | null>(null)
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+
+  // Typing indicators: channelId -> array of userIds who are typing
+  const typingUsers = ref<Record<string, string[]>>({})
+
+  // Notification levels per channel: channelId -> level
+  const notificationLevels = ref<Record<string, NotificationLevel>>({})
+
+  // Mention counts per channel: channelId -> count (упоминания текущего юзера)
+  const mentionCounts = ref<Record<string, number>>({})
+
+  const currentChannel = computed(() =>
+    channels.value.find(c => c.id === currentChannelId.value) ?? null
+  )
+
+  const textChannels = computed(() =>
+    channels.value.filter(c => c.type === 'text')
+  )
+
+  const voiceChannels = computed(() =>
+    channels.value.filter(c => c.type === 'voice')
+  )
+
+  async function fetchCategories(workspaceId: string) {
+    try {
+      categories.value = await categoriesApi.list(workspaceId)
+    } catch {
+      categories.value = []
+    }
+  }
+
+  async function fetchChannels(workspaceId: string) {
+    loading.value = true
+    error.value = null
+    try {
+      await fetchCategories(workspaceId)
+      channels.value = await channelsApi.list(workspaceId)
+      // Инициализируем notificationLevels и mentionCounts из данных каналов
+      for (const ch of channels.value) {
+        if (ch.notification_level) {
+          notificationLevels.value[ch.id] = ch.notification_level
+        }
+        mentionCounts.value[ch.id] = ch.mention_count ?? 0
+      }
+      // Автоматически выбираем первый текстовый канал, но НЕ отмечаем прочитанным
+      if (!currentChannelId.value && textChannels.value.length > 0) {
+        currentChannelId.value = textChannels.value[0].id
+      }
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Ошибка загрузки каналов'
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function createChannel(data: ChannelCreate) {
+    loading.value = true
+    error.value = null
+    try {
+      const channel = await channelsApi.create(data)
+      // Добавляем с unread_count = 0
+      channels.value.push({ ...channel, unread_count: 0 })
+      if (channel.type === 'text') {
+        currentChannelId.value = channel.id
+      }
+      return channel
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Ошибка создания канала'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function deleteChannel(channelId: string) {
+    await channelsApi.delete(channelId)
+    removeChannel(channelId)
+  }
+
+  async function updateChannelSettings(channelId: string, data: ChannelUpdate) {
+    const updated = await channelsApi.update(channelId, data)
+    const idx = channels.value.findIndex(c => c.id === channelId)
+    if (idx !== -1) {
+      const unread = channels.value[idx].unread_count
+      channels.value[idx] = { ...updated, unread_count: unread }
+    }
+    return updated
+  }
+
+  async function updateNotifications(channelId: string, level: NotificationLevel) {
+    await channelsApi.updateNotifications(channelId, level)
+    notificationLevels.value[channelId] = level
+  }
+
+  function getNotificationLevel(channelId: string): NotificationLevel {
+    return notificationLevels.value[channelId] ?? 'all'
+  }
+
+  async function markAsRead(channelId: string, messageId?: string) {
+    try {
+      await channelsApi.markAsRead(channelId, messageId)
+      // Обновляем unread count локально
+      const channel = channels.value.find(c => c.id === channelId)
+      if (channel) {
+        channel.unread_count = 0
+      }
+    } catch (e) {
+      console.error('Failed to mark channel as read:', e)
+    }
+  }
+
+  function setCurrentChannel(id: string, lastMessageId?: string) {
+    currentChannelId.value = id
+    // Отмечаем канал прочитанным при открытии с ID последнего сообщения
+    if (lastMessageId) {
+      markAsRead(id, lastMessageId)
+    }
+  }
+
+  // Real-time методы
+  function addChannel(channel: Channel) {
+    const exists = channels.value.find(c => c.id === channel.id)
+    if (!exists) {
+      channels.value.push({ ...channel, unread_count: 0 })
+      console.log('[Channels] Added channel:', channel.name)
+    }
+  }
+
+  function updateChannel(channel: Channel) {
+    const index = channels.value.findIndex(c => c.id === channel.id)
+    if (index !== -1) {
+      // Сохраняем unread_count при обновлении
+      const unread = channels.value[index].unread_count
+      channels.value[index] = { ...channel, unread_count: unread }
+      console.log('[Channels] Updated channel:', channel.name)
+    }
+  }
+
+  function removeChannel(channelId: string) {
+    const index = channels.value.findIndex(c => c.id === channelId)
+    if (index !== -1) {
+      channels.value.splice(index, 1)
+      console.log('[Channels] Removed channel:', channelId)
+      
+      // Если удалили текущий канал, переключаемся на первый доступный
+      if (currentChannelId.value === channelId && textChannels.value.length > 0) {
+        currentChannelId.value = textChannels.value[0].id
+      }
+    }
+  }
+
+  function incrementUnread(channelId: string) {
+    const channel = channels.value.find(c => c.id === channelId)
+    if (channel) {
+      channel.unread_count++
+    }
+  }
+
+  function incrementMention(channelId: string) {
+    mentionCounts.value[channelId] = (mentionCounts.value[channelId] ?? 0) + 1
+  }
+
+  function getMentionCount(channelId: string): number {
+    return mentionCounts.value[channelId] ?? 0
+  }
+
+  function clearUnread(channelId: string) {
+    const channel = channels.value.find(c => c.id === channelId)
+    if (channel) {
+      channel.unread_count = 0
+    }
+    mentionCounts.value[channelId] = 0
+  }
+
+  // Typing indicators
+  function setUserTyping(channelId: string, userId: string, isTyping: boolean) {
+    if (!typingUsers.value[channelId]) {
+      typingUsers.value[channelId] = []
+    }
+    const arr = typingUsers.value[channelId]
+    const idx = arr.indexOf(userId)
+    if (isTyping && idx === -1) {
+      arr.push(userId)
+    } else if (!isTyping && idx !== -1) {
+      arr.splice(idx, 1)
+    }
+  }
+
+  function getTypingUsers(channelId: string): string[] {
+    return typingUsers.value[channelId] ?? []
+  }
+
+  // --- Category real-time handlers ---
+  function addCategory(cat: ChannelCategory) {
+    if (!categories.value.find(c => c.id === cat.id)) {
+      categories.value.push(cat)
+      categories.value.sort((a, b) => a.position - b.position)
+    }
+  }
+
+  function updateCategory(cat: ChannelCategory) {
+    const idx = categories.value.findIndex(c => c.id === cat.id)
+    if (idx !== -1) {
+      categories.value[idx] = cat
+      categories.value.sort((a, b) => a.position - b.position)
+    }
+  }
+
+  function removeCategory(categoryId: string) {
+    const idx = categories.value.findIndex(c => c.id === categoryId)
+    if (idx !== -1) categories.value.splice(idx, 1)
+    // Каналы этой категории становятся uncategorized
+    for (const ch of channels.value) {
+      if (ch.category_id === categoryId) ch.category_id = null
+    }
+  }
+
+  function $reset() {
+    channels.value = []
+    categories.value = []
+    currentChannelId.value = null
+    loading.value = false
+    error.value = null
+    typingUsers.value = {}
+    notificationLevels.value = {}
+    mentionCounts.value = {}
+  }
+
+  return {
+    channels,
+    categories,
+    currentChannelId,
+    currentChannel,
+    textChannels,
+    voiceChannels,
+    loading,
+    error,
+    typingUsers,
+    notificationLevels,
+    mentionCounts,
+    getMentionCount,
+    incrementMention,
+    fetchChannels,
+    fetchCategories,
+    createChannel,
+    deleteChannel,
+    updateChannelSettings,
+    updateNotifications,
+    getNotificationLevel,
+    markAsRead,
+    setCurrentChannel,
+    addChannel,
+    updateChannel,
+    removeChannel,
+    incrementUnread,
+    clearUnread,
+    setUserTyping,
+    getTypingUsers,
+    addCategory,
+    updateCategory,
+    removeCategory,
+    $reset,
+  }
+})
+
