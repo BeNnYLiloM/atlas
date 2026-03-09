@@ -84,6 +84,7 @@ func main() {
 		cfg.MinIO.SecretKey,
 		cfg.MinIO.Bucket,
 		cfg.MinIO.UseSSL,
+		cfg.MinIO.PublicURL,
 	)
 	var fileService *service.FileService
 	if minioErr != nil {
