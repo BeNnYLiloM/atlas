@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -11,13 +12,14 @@ import (
 )
 
 type MinIOStorage struct {
-	client     *minio.Client
-	bucket     string
-	endpoint   string
-	useSSL     bool
+	client    *minio.Client
+	bucket    string
+	endpoint  string
+	useSSL    bool
+	publicURL string
 }
 
-func NewMinIOStorage(endpoint, accessKey, secretKey, bucket string, useSSL bool) (*MinIOStorage, error) {
+func NewMinIOStorage(endpoint, accessKey, secretKey, bucket string, useSSL bool, publicURL string) (*MinIOStorage, error) {
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
 		Secure: useSSL,
@@ -28,7 +30,6 @@ func NewMinIOStorage(endpoint, accessKey, secretKey, bucket string, useSSL bool)
 
 	ctx := context.Background()
 
-	// Создаем bucket если не существует
 	exists, err := client.BucketExists(ctx, bucket)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check bucket: %w", err)
@@ -39,7 +40,6 @@ func NewMinIOStorage(endpoint, accessKey, secretKey, bucket string, useSSL bool)
 		}
 	}
 
-	// Устанавливаем политику публичного чтения
 	policy := fmt.Sprintf(`{
 		"Version":"2012-10-17",
 		"Statement":[{
@@ -50,19 +50,18 @@ func NewMinIOStorage(endpoint, accessKey, secretKey, bucket string, useSSL bool)
 		}]
 	}`, bucket)
 	if err := client.SetBucketPolicy(ctx, bucket, policy); err != nil {
-		// Не критично — продолжаем без публичной политики
 		fmt.Printf("[MinIO] Warning: failed to set bucket policy: %v\n", err)
 	}
 
 	return &MinIOStorage{
-		client:   client,
-		bucket:   bucket,
-		endpoint: endpoint,
-		useSSL:   useSSL,
+		client:    client,
+		bucket:    bucket,
+		endpoint:  endpoint,
+		useSSL:    useSSL,
+		publicURL: strings.TrimRight(publicURL, "/"),
 	}, nil
 }
 
-// Upload загружает файл в MinIO и возвращает путь хранения
 func (s *MinIOStorage) Upload(ctx context.Context, objectName string, reader io.Reader, size int64, contentType string) (string, error) {
 	_, err := s.client.PutObject(ctx, s.bucket, objectName, reader, size, minio.PutObjectOptions{
 		ContentType: contentType,
@@ -73,8 +72,11 @@ func (s *MinIOStorage) Upload(ctx context.Context, objectName string, reader io.
 	return objectName, nil
 }
 
-// GetURL возвращает публичный URL для файла
 func (s *MinIOStorage) GetURL(objectName string) string {
+	if s.publicURL != "" {
+		return fmt.Sprintf("%s/%s/%s", s.publicURL, s.bucket, objectName)
+	}
+
 	scheme := "http"
 	if s.useSSL {
 		scheme = "https"
@@ -82,7 +84,6 @@ func (s *MinIOStorage) GetURL(objectName string) string {
 	return fmt.Sprintf("%s://%s/%s/%s", scheme, s.endpoint, s.bucket, objectName)
 }
 
-// GetPresignedURL возвращает подписанный URL (для приватных файлов)
 func (s *MinIOStorage) GetPresignedURL(ctx context.Context, objectName string, expiry time.Duration) (string, error) {
 	url, err := s.client.PresignedGetObject(ctx, s.bucket, objectName, expiry, nil)
 	if err != nil {
@@ -91,7 +92,6 @@ func (s *MinIOStorage) GetPresignedURL(ctx context.Context, objectName string, e
 	return url.String(), nil
 }
 
-// Delete удаляет файл из MinIO
 func (s *MinIOStorage) Delete(ctx context.Context, objectName string) error {
-	return s.client.RemoveObject(ctx, s.bucket, objectName, minio.RemoveObjectOptions{})
+	return s.client.RemoveObject(ctx, objectName, objectName, minio.RemoveObjectOptions{})
 }
