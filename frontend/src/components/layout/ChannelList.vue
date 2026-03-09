@@ -93,6 +93,7 @@ async function handleSetNotification(channelId: string, level: NotificationLevel
 }
 
 async function handleMute(channelId: string, minutes: number | null) {
+  void minutes
   // Заглушить = выставить 'nothing', разблокировка — отдельная логика
   await channelsStore.updateNotifications(channelId, 'nothing')
 }
@@ -136,9 +137,11 @@ function getMentionCount(channelId: string): number {
 
 <template>
   <div class="p-3 space-y-2">
-
     <!-- Text channels grouped by category -->
-    <template v-for="group in groupedTextChannels" :key="group.id ?? '__uncategorized_text'">
+    <template
+      v-for="group in groupedTextChannels"
+      :key="group.id ?? '__uncategorized_text'"
+    >
       <div v-if="group.channels.length > 0 || (isAdmin && group.id !== null)">
         <!-- Category header -->
         <div class="px-2 mb-1 flex items-center justify-between group/header">
@@ -153,10 +156,23 @@ function getMentionCount(channelId: string): number {
               fill="currentColor"
               viewBox="0 0 20 20"
             >
-              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+              <path
+                fill-rule="evenodd"
+                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                clip-rule="evenodd"
+              />
             </svg>
-            <svg v-if="group.isPrivate" class="w-3 h-3 shrink-0 text-dark-500" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+            <svg
+              v-if="group.isPrivate"
+              class="w-3 h-3 shrink-0 text-dark-500"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                clip-rule="evenodd"
+              />
             </svg>
             <span class="truncate">{{ group.name ?? 'Текстовые каналы' }}</span>
           </button>
@@ -166,14 +182,27 @@ function getMentionCount(channelId: string): number {
             title="Создать канал"
             @click.stop="emit('createChannel')"
           >
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-4 h-4">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
+            <svg
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              class="w-4 h-4"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2.5"
+                d="M12 4v16m8-8H4"
+              />
             </svg>
           </button>
         </div>
 
         <!-- Channel list -->
-        <div v-if="!group.id || !isCategoryCollapsed(group.id)" class="space-y-0.5">
+        <div
+          v-if="!group.id || !isCategoryCollapsed(group.id)"
+          class="space-y-0.5"
+        >
           <button
             v-for="channel in group.channels"
             :key="channel.id"
@@ -186,36 +215,92 @@ function getMentionCount(channelId: string): number {
             @click="selectChannel(channel.id)"
             @contextmenu="openContextMenu($event, channel.id)"
           >
-            <svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+            <svg
+              class="w-5 h-5 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"
+              />
             </svg>
-            <span class="truncate text-sm" :class="getUnreadCount(channel.id) > 0 ? 'font-semibold' : ''">
+            <span
+              class="truncate text-sm"
+              :class="getUnreadCount(channel.id) > 0 ? 'font-semibold' : ''"
+            >
               {{ channel.name }}
             </span>
 
             <!-- Right side indicators -->
             <div class="ml-auto flex items-center gap-1 shrink-0">
               <template v-if="channelsStore.getNotificationLevel(channel.id) === 'nothing'">
-                <svg class="w-3.5 h-3.5 text-dark-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" title="Уведомления отключены">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                <svg
+                  class="w-3.5 h-3.5 text-dark-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  title="Уведомления отключены"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+                    clip-rule="evenodd"
+                  />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"
+                  />
                 </svg>
               </template>
               <template v-else-if="channelsStore.getNotificationLevel(channel.id) === 'mentions'">
-                <span v-if="getMentionCount(channel.id) > 0" class="px-1.5 py-0.5 text-xs font-semibold bg-atlas-500 text-white rounded-full min-w-[20px] text-center">
+                <span
+                  v-if="getMentionCount(channel.id) > 0"
+                  class="px-1.5 py-0.5 text-xs font-semibold bg-atlas-500 text-white rounded-full min-w-[20px] text-center"
+                >
                   {{ getMentionCount(channel.id) > 99 ? '99+' : getMentionCount(channel.id) }}
                 </span>
-                <span v-else-if="getUnreadCount(channel.id) > 0" class="w-2 h-2 rounded-full bg-atlas-500 shrink-0" />
-                <svg class="w-3.5 h-3.5 text-dark-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M14.243 5.757a6 6 0 10-.986 9.284 1 1 0 111.087 1.678A8 8 0 1118 10a3 3 0 01-4.8 2.401A4 4 0 1114 10a1 1 0 102 0c0-1.537-.586-2.987-1.757-4.243zM12 10a2 2 0 10-4 0 2 2 0 004 0z" clip-rule="evenodd" />
+                <span
+                  v-else-if="getUnreadCount(channel.id) > 0"
+                  class="w-2 h-2 rounded-full bg-atlas-500 shrink-0"
+                />
+                <svg
+                  class="w-3.5 h-3.5 text-dark-500"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M14.243 5.757a6 6 0 10-.986 9.284 1 1 0 111.087 1.678A8 8 0 1118 10a3 3 0 01-4.8 2.401A4 4 0 1114 10a1 1 0 102 0c0-1.537-.586-2.987-1.757-4.243zM12 10a2 2 0 10-4 0 2 2 0 004 0z"
+                    clip-rule="evenodd"
+                  />
                 </svg>
               </template>
               <template v-else>
-                <span v-if="getUnreadCount(channel.id) > 0" class="px-1.5 py-0.5 text-xs font-semibold bg-atlas-500 text-white rounded-full min-w-[20px] text-center">
+                <span
+                  v-if="getUnreadCount(channel.id) > 0"
+                  class="px-1.5 py-0.5 text-xs font-semibold bg-atlas-500 text-white rounded-full min-w-[20px] text-center"
+                >
                   {{ getUnreadCount(channel.id) > 99 ? '99+' : getUnreadCount(channel.id) }}
                 </span>
-                <svg v-else-if="channel.is_private" class="w-3.5 h-3.5 text-dark-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+                <svg
+                  v-else-if="channel.is_private"
+                  class="w-3.5 h-3.5 text-dark-500"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                    clip-rule="evenodd"
+                  />
                 </svg>
               </template>
             </div>
@@ -225,7 +310,10 @@ function getMentionCount(channelId: string): number {
     </template>
 
     <!-- Voice channels grouped by category -->
-    <template v-for="group in groupedVoiceChannels" :key="(group.id ?? '__uncategorized_voice') + '_voice'">
+    <template
+      v-for="group in groupedVoiceChannels"
+      :key="(group.id ?? '__uncategorized_voice') + '_voice'"
+    >
       <div v-if="group.channels.length > 0 || isAdmin">
         <div class="px-2 mb-1 flex items-center justify-between group/header">
           <button
@@ -239,7 +327,11 @@ function getMentionCount(channelId: string): number {
               fill="currentColor"
               viewBox="0 0 20 20"
             >
-              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+              <path
+                fill-rule="evenodd"
+                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                clip-rule="evenodd"
+              />
             </svg>
             <span class="truncate">{{ group.name ?? 'Голосовые каналы' }}</span>
           </button>
@@ -249,82 +341,137 @@ function getMentionCount(channelId: string): number {
             title="Создать канал"
             @click.stop="emit('createChannel')"
           >
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" class="w-4 h-4">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
-        </div>
-        <div v-if="!group.id || !isCategoryCollapsed(group.id + '_v')" class="space-y-0.5">
-          <div v-for="channel in group.channels" :key="channel.id">
-          <button
-            class="w-full px-2 py-1.5 flex items-center gap-2 rounded-lg transition-colors text-left group"
-            :class="[
-              callsStore.isInChannel(channel.id)
-                ? 'bg-green-900/30 text-green-400'
-                : 'text-dark-400 hover:text-dark-100 hover:bg-dark-800'
-            ]"
-            :disabled="callsStore.loading"
-            @click="joinVoiceChannel(channel.id)"
-          >
-            <!-- Иконка канала -->
-            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-            </svg>
-            <span class="truncate text-sm flex-1">{{ channel.name }}</span>
-
-            <!-- Спиннер пока подключаемся -->
             <svg
-              v-if="callsStore.loading && !callsStore.isInCall"
-              class="w-3.5 h-3.5 animate-spin text-atlas-400"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-
-            <!-- Иконка "выйти" когда в канале -->
-            <svg
-              v-else-if="callsStore.isInChannel(channel.id)"
-              class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-red-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
-              title="Выйти из канала"
+              class="w-4 h-4"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2.5"
+                d="M12 4v16m8-8H4"
+              />
             </svg>
           </button>
-
-          <!-- Участники в канале (как в Discord) -->
-          <div v-if="callsStore.isInChannel(channel.id) && callsStore.participants.length > 0" class="ml-6 mt-0.5 space-y-0.5">
-            <div
-              v-for="participant in callsStore.participants"
-              :key="participant"
-              class="flex items-center gap-1.5 px-2 py-0.5 text-xs text-dark-400"
+        </div>
+        <div
+          v-if="!group.id || !isCategoryCollapsed(group.id + '_v')"
+          class="space-y-0.5"
+        >
+          <div
+            v-for="channel in group.channels"
+            :key="channel.id"
+          >
+            <button
+              class="w-full px-2 py-1.5 flex items-center gap-2 rounded-lg transition-colors text-left group"
+              :class="[
+                callsStore.isInChannel(channel.id)
+                  ? 'bg-green-900/30 text-green-400'
+                  : 'text-dark-400 hover:text-dark-100 hover:bg-dark-800'
+              ]"
+              :disabled="callsStore.loading"
+              @click="joinVoiceChannel(channel.id)"
             >
-              <div class="w-5 h-5 rounded-full bg-dark-700 flex items-center justify-center text-[10px] text-dark-300">
-                {{ participant.slice(0, 1).toUpperCase() }}
-              </div>
-              <span class="truncate">{{ participant }}</span>
-            </div>
-          </div>
+              <!-- Иконка канала -->
+              <svg
+                class="w-4 h-4 flex-shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+                />
+              </svg>
+              <span class="truncate text-sm flex-1">{{ channel.name }}</span>
 
-          <!-- Текущий пользователь в канале -->
-          <div v-if="callsStore.isInChannel(channel.id)" class="ml-6 mt-0.5">
-            <div class="flex items-center gap-1.5 px-2 py-0.5 text-xs text-green-400">
-              <div class="w-5 h-5 rounded-full bg-green-900/50 flex items-center justify-center">
-                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                  <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                </svg>
+              <!-- Спиннер пока подключаемся -->
+              <svg
+                v-if="callsStore.loading && !callsStore.isInCall"
+                class="w-3.5 h-3.5 animate-spin text-atlas-400"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                />
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+
+              <!-- Иконка "выйти" когда в канале -->
+              <svg
+                v-else-if="callsStore.isInChannel(channel.id)"
+                class="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-red-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                title="Выйти из канала"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                />
+              </svg>
+            </button>
+
+            <!-- Участники в канале (как в Discord) -->
+            <div
+              v-if="callsStore.isInChannel(channel.id) && callsStore.participants.length > 0"
+              class="ml-6 mt-0.5 space-y-0.5"
+            >
+              <div
+                v-for="participant in callsStore.participants"
+                :key="participant"
+                class="flex items-center gap-1.5 px-2 py-0.5 text-xs text-dark-400"
+              >
+                <div class="w-5 h-5 rounded-full bg-dark-700 flex items-center justify-center text-[10px] text-dark-300">
+                  {{ participant.slice(0, 1).toUpperCase() }}
+                </div>
+                <span class="truncate">{{ participant }}</span>
               </div>
-              <span>Вы</span>
-              <span v-if="callsStore.isMuted" class="text-red-400">(без звука)</span>
+            </div>
+
+            <!-- Текущий пользователь в канале -->
+            <div
+              v-if="callsStore.isInChannel(channel.id)"
+              class="ml-6 mt-0.5"
+            >
+              <div class="flex items-center gap-1.5 px-2 py-0.5 text-xs text-green-400">
+                <div class="w-5 h-5 rounded-full bg-green-900/50 flex items-center justify-center">
+                  <svg
+                    class="w-3 h-3"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z" />
+                    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z" />
+                  </svg>
+                </div>
+                <span>Вы</span>
+                <span
+                  v-if="callsStore.isMuted"
+                  class="text-red-400"
+                >(без звука)</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
       </div>
     </template>
 
@@ -333,18 +480,50 @@ function getMentionCount(channelId: string): number {
       v-if="channelsStore.textChannels.length === 0 && channelsStore.voiceChannels.length === 0 && !channelsStore.loading"
       class="text-center py-8"
     >
-      <svg class="w-12 h-12 mx-auto text-dark-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+      <svg
+        class="w-12 h-12 mx-auto text-dark-600 mb-3"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="1.5"
+          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+        />
       </svg>
-      <p class="text-dark-500 text-sm">Нет каналов</p>
-      <p class="text-dark-600 text-xs mt-1">Создайте первый канал</p>
+      <p class="text-dark-500 text-sm">
+        Нет каналов
+      </p>
+      <p class="text-dark-600 text-xs mt-1">
+        Создайте первый канал
+      </p>
     </div>
 
     <!-- Loading state -->
-    <div v-if="channelsStore.loading" class="flex justify-center py-8">
-      <svg class="animate-spin w-6 h-6 text-atlas-500" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+    <div
+      v-if="channelsStore.loading"
+      class="flex justify-center py-8"
+    >
+      <svg
+        class="animate-spin w-6 h-6 text-atlas-500"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          class="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          stroke-width="4"
+        />
+        <path
+          class="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+        />
       </svg>
     </div>
   </div>
@@ -381,7 +560,9 @@ function getMentionCount(channelId: string): number {
       @click.self="deleteConfirmChannelId = null"
     >
       <div class="bg-dark-800 border border-dark-600 rounded-xl shadow-2xl p-6 w-[360px]">
-        <h3 class="text-base font-semibold text-white mb-2">Удалить канал</h3>
+        <h3 class="text-base font-semibold text-white mb-2">
+          Удалить канал
+        </h3>
         <p class="text-sm text-dark-300 mb-5">
           Вы уверены? Канал
           <span class="font-semibold text-white">#{{ channelsStore.channels.find(c => c.id === deleteConfirmChannelId)?.name }}</span>
@@ -406,4 +587,5 @@ function getMentionCount(channelId: string): number {
     </div>
   </Teleport>
 </template>
+
 

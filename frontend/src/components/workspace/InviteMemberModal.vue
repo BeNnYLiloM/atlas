@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref } from 'vue'
 import { usersApi, workspacesApi } from '@/api'
 import { useWorkspaceStore } from '@/stores'
 import { Modal, Input, Button, Select } from '@/components/ui'
@@ -82,11 +82,20 @@ const roles = [
 </script>
 
 <template>
-  <Modal :open="props.open" title="Пригласить участника" @close="onClose">
+  <Modal
+    :open="props.open"
+    title="Пригласить участника"
+    @close="onClose"
+  >
     <div class="space-y-4">
       <!-- Success message -->
-      <div v-if="success" class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-        <p class="text-sm text-emerald-400">{{ success }}</p>
+      <div
+        v-if="success"
+        class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg"
+      >
+        <p class="text-sm text-emerald-400">
+          {{ success }}
+        </p>
       </div>
 
       <!-- Search form -->
@@ -109,24 +118,39 @@ const roles = [
         </div>
 
         <!-- Error -->
-        <p v-if="error" class="mt-2 text-sm text-red-400">{{ error }}</p>
+        <p
+          v-if="error"
+          class="mt-2 text-sm text-red-400"
+        >
+          {{ error }}
+        </p>
 
         <!-- Found user -->
-        <div v-if="foundUser" class="mt-4 p-4 bg-dark-800 rounded-lg space-y-4">
+        <div
+          v-if="foundUser"
+          class="mt-4 p-4 bg-dark-800 rounded-lg space-y-4"
+        >
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-full bg-atlas-600 flex items-center justify-center text-white font-semibold">
               {{ foundUser.display_name[0].toUpperCase() }}
             </div>
             <div>
-              <p class="font-medium text-white">{{ foundUser.display_name }}</p>
-              <p class="text-sm text-dark-400">{{ foundUser.email }}</p>
+              <p class="font-medium text-white">
+                {{ foundUser.display_name }}
+              </p>
+              <p class="text-sm text-dark-400">
+                {{ foundUser.email }}
+              </p>
             </div>
           </div>
 
           <!-- Role select -->
           <div>
             <label class="block text-sm font-medium text-dark-300 mb-2">Роль</label>
-            <Select v-model="role" :options="roles" />
+            <Select
+              v-model="role"
+              :options="roles"
+            />
           </div>
 
           <Button
@@ -141,4 +165,5 @@ const roles = [
     </div>
   </Modal>
 </template>
+
 

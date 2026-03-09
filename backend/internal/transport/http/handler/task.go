@@ -45,7 +45,7 @@ func (h *TaskHandler) List(c *gin.Context) {
 		return
 	}
 
-	tasks, err := h.taskService.GetByWorkspace(c.Request.Context(), workspaceID, c.Query("status"))
+	tasks, err := h.taskService.GetByWorkspace(c.Request.Context(), workspaceID, c.Query("status"), middleware.GetUserID(c))
 	if err != nil {
 		response.Error(c, err)
 		return
@@ -67,7 +67,7 @@ func (h *TaskHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if err := h.taskService.Update(c.Request.Context(), id, &update); err != nil {
+	if err := h.taskService.Update(c.Request.Context(), id, middleware.GetUserID(c), &update); err != nil {
 		response.Error(c, err)
 		return
 	}
@@ -79,7 +79,7 @@ func (h *TaskHandler) Update(c *gin.Context) {
 func (h *TaskHandler) Delete(c *gin.Context) {
 	id := c.Param("id")
 
-	if err := h.taskService.Delete(c.Request.Context(), id); err != nil {
+	if err := h.taskService.Delete(c.Request.Context(), id, middleware.GetUserID(c)); err != nil {
 		response.Error(c, err)
 		return
 	}

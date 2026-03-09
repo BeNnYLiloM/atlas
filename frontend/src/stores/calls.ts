@@ -92,7 +92,7 @@ export const useCallsStore = defineStore('calls', () => {
 
       // Attach аудио от участников уже находящихся в комнате
       newRoom.participants.forEach(participant => {
-        ;(participant as RemoteParticipant).tracks.forEach((pub: RemoteTrackPublication) => {
+        (participant as RemoteParticipant).tracks.forEach((pub: RemoteTrackPublication) => {
           if (pub.track && pub.track.kind === Track.Kind.Audio) {
             const el = (pub.track as RemoteTrack).attach()
             getAudioContainer().appendChild(el)

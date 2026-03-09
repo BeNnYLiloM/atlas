@@ -15,7 +15,6 @@ function showBrowserNotification(title: string, body: string, channelId: string)
     body,
     icon: '/favicon.ico',
     tag: channelId, // одно уведомление на канал
-    renotify: true,
   })
   n.onclick = () => {
     window.focus()
@@ -346,3 +345,4 @@ export const useWebSocketStore = defineStore('websocket', () => {
     unsubscribe,
   }
 })
+

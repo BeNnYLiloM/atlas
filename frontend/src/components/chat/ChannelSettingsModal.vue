@@ -236,7 +236,7 @@ function getInitials(n: string) {
 }
 
 function normalizeChannelName(value: string) {
-  return value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-zа-яё0-9\-]/gi, '')
+  return value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-zа-яё0-9-]/gi, '')
 }
 
 function onChannelNameInput(e: Event) {
@@ -336,13 +336,23 @@ const notifOptions: { value: NotificationLevel; label: string; description: stri
           <!-- Content -->
           <div class="flex-1 overflow-y-auto p-6">
             <!-- Overview -->
-            <div v-if="activeTab === 'overview'" class="space-y-5">
-              <h2 class="text-lg font-semibold text-white">Основные настройки</h2>
+            <div
+              v-if="activeTab === 'overview'"
+              class="space-y-5"
+            >
+              <h2 class="text-lg font-semibold text-white">
+                Основные настройки
+              </h2>
 
               <template v-if="canEditChannel">
                 <div>
                   <label class="block text-sm font-medium text-dark-300 mb-1.5">Название канала</label>
-                  <Input v-model="name" placeholder="general" maxlength="100" @input="onChannelNameInput" />
+                  <Input
+                    v-model="name"
+                    placeholder="general"
+                    maxlength="100"
+                    @input="onChannelNameInput"
+                  />
                 </div>
 
                 <div>
@@ -354,33 +364,62 @@ const notifOptions: { value: NotificationLevel; label: string; description: stri
                     placeholder="О чём этот канал..."
                     class="w-full px-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-dark-100 placeholder-dark-500 focus:border-atlas-500 focus:outline-none resize-none text-sm"
                   />
-                  <p class="text-xs text-dark-500 mt-1 text-right">{{ topic.length }}/1024</p>
+                  <p class="text-xs text-dark-500 mt-1 text-right">
+                    {{ topic.length }}/1024
+                  </p>
                 </div>
 
                 <div>
                   <label class="block text-sm font-medium text-dark-300 mb-1.5">Slow Mode</label>
-                  <p class="text-xs text-dark-500 mb-2">Ограничение на частоту отправки сообщений участниками</p>
-                  <Select v-model="slowmode" :options="slowmodeOptions" />
+                  <p class="text-xs text-dark-500 mb-2">
+                    Ограничение на частоту отправки сообщений участниками
+                  </p>
+                  <Select
+                    v-model="slowmode"
+                    :options="slowmodeOptions"
+                  />
                 </div>
 
-                <div v-if="saveError" class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                  <p class="text-sm text-red-400">{{ saveError }}</p>
+                <div
+                  v-if="saveError"
+                  class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg"
+                >
+                  <p class="text-sm text-red-400">
+                    {{ saveError }}
+                  </p>
                 </div>
-                <div v-if="saveSuccess" class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                  <p class="text-sm text-emerald-400">Изменения сохранены</p>
+                <div
+                  v-if="saveSuccess"
+                  class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg"
+                >
+                  <p class="text-sm text-emerald-400">
+                    Изменения сохранены
+                  </p>
                 </div>
 
-                <Button :loading="saving" @click="saveOverview">
+                <Button
+                  :loading="saving"
+                  @click="saveOverview"
+                >
                   Сохранить
                 </Button>
 
                 <!-- Удаление канала -->
                 <div class="border-t border-dark-700 pt-5 mt-2">
-                  <h3 class="text-sm font-medium text-red-400 mb-3">Опасная зона</h3>
-                  <div v-if="!showDeleteConfirm" class="flex items-center justify-between p-3 border border-red-500/20 rounded-lg bg-red-500/5">
+                  <h3 class="text-sm font-medium text-red-400 mb-3">
+                    Опасная зона
+                  </h3>
+                  <div
+                    v-if="!showDeleteConfirm"
+                    class="flex items-center justify-between p-3 border border-red-500/20 rounded-lg bg-red-500/5"
+                  >
                     <div>
-                      <p class="text-sm font-medium text-white">Удалить канал</p>
-                      <p class="text-xs text-dark-400 mt-0.5">Это действие необратимо, все сообщения будут удалены</p>
+                      <p class="text-sm font-medium text-white">
+                        Удалить канал
+                      </p>
+                      <p class="text-xs text-dark-400 mt-0.5">
+                        Это действие необратимо, все сообщения будут удалены
+                      </p>
                     </div>
                     <button
                       class="px-3 py-1.5 text-sm font-medium text-red-400 border border-red-500/40 rounded-lg hover:bg-red-500/10 transition-colors"
@@ -389,8 +428,13 @@ const notifOptions: { value: NotificationLevel; label: string; description: stri
                       Удалить
                     </button>
                   </div>
-                  <div v-else class="p-3 border border-red-500/40 rounded-lg bg-red-500/10 space-y-3">
-                    <p class="text-sm text-white">Вы уверены? Канал <span class="font-semibold">#{{ channel.name }}</span> и все его сообщения будут удалены навсегда.</p>
+                  <div
+                    v-else
+                    class="p-3 border border-red-500/40 rounded-lg bg-red-500/10 space-y-3"
+                  >
+                    <p class="text-sm text-white">
+                      Вы уверены? Канал <span class="font-semibold">#{{ channel.name }}</span> и все его сообщения будут удалены навсегда.
+                    </p>
                     <div class="flex gap-2">
                       <button
                         class="flex-1 px-3 py-1.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
@@ -414,38 +458,74 @@ const notifOptions: { value: NotificationLevel; label: string; description: stri
               <template v-else>
                 <div class="space-y-3">
                   <div class="p-3 bg-dark-900 rounded-lg">
-                    <p class="text-xs text-dark-400 mb-1">Название</p>
-                    <p class="text-sm text-white"># {{ channel.name }}</p>
+                    <p class="text-xs text-dark-400 mb-1">
+                      Название
+                    </p>
+                    <p class="text-sm text-white">
+                      # {{ channel.name }}
+                    </p>
                   </div>
-                  <div v-if="channel.topic" class="p-3 bg-dark-900 rounded-lg">
-                    <p class="text-xs text-dark-400 mb-1">Топик</p>
-                    <p class="text-sm text-white">{{ channel.topic }}</p>
+                  <div
+                    v-if="channel.topic"
+                    class="p-3 bg-dark-900 rounded-lg"
+                  >
+                    <p class="text-xs text-dark-400 mb-1">
+                      Топик
+                    </p>
+                    <p class="text-sm text-white">
+                      {{ channel.topic }}
+                    </p>
                   </div>
                   <div class="p-3 bg-dark-900 rounded-lg">
-                    <p class="text-xs text-dark-400 mb-1">Тип</p>
-                    <p class="text-sm text-white">{{ channel.is_private ? 'Приватный' : 'Публичный' }}</p>
+                    <p class="text-xs text-dark-400 mb-1">
+                      Тип
+                    </p>
+                    <p class="text-sm text-white">
+                      {{ channel.is_private ? 'Приватный' : 'Публичный' }}
+                    </p>
                   </div>
                 </div>
               </template>
             </div>
 
             <!-- Права доступа -->
-            <div v-else-if="activeTab === 'permissions'" class="space-y-5">
+            <div
+              v-else-if="activeTab === 'permissions'"
+              class="space-y-5"
+            >
               <div>
-                <h2 class="text-lg font-semibold text-white">Права канала</h2>
-                <p class="text-xs text-dark-400 mt-1">Управляйте кто имеет доступ к этому каналу</p>
+                <h2 class="text-lg font-semibold text-white">
+                  Права канала
+                </h2>
+                <p class="text-xs text-dark-400 mt-1">
+                  Управляйте кто имеет доступ к этому каналу
+                </p>
               </div>
 
               <!-- Приватный переключатель -->
               <div class="p-4 border border-dark-700 rounded-lg">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-3">
-                    <svg class="w-5 h-5 text-dark-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    <svg
+                      class="w-5 h-5 text-dark-400 shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                      />
                     </svg>
                     <div>
-                      <p class="text-sm font-medium text-white">Приватный канал</p>
-                      <p class="text-xs text-dark-400 mt-0.5">Только выбранные участники и роли могут просматривать его</p>
+                      <p class="text-sm font-medium text-white">
+                        Приватный канал
+                      </p>
+                      <p class="text-xs text-dark-400 mt-0.5">
+                        Только выбранные участники и роли могут просматривать его
+                      </p>
                     </div>
                   </div>
                   <button
@@ -459,16 +539,33 @@ const notifOptions: { value: NotificationLevel; label: string; description: stri
                       :class="channel.is_private ? 'translate-x-6' : 'translate-x-1'"
                     />
                   </button>
-                  <div v-else class="text-xs px-2 py-1 rounded" :class="channel.is_private ? 'bg-atlas-600/20 text-atlas-300' : 'bg-dark-800 text-dark-400'">
+                  <div
+                    v-else
+                    class="text-xs px-2 py-1 rounded"
+                    :class="channel.is_private ? 'bg-atlas-600/20 text-atlas-300' : 'bg-dark-800 text-dark-400'"
+                  >
                     {{ channel.is_private ? 'Приватный' : 'Публичный' }}
                   </div>
                 </div>
               </div>
 
               <!-- Публичный канал: инфо-блок -->
-              <div v-if="!channel.is_private" class="flex items-center gap-3 p-4 bg-dark-900 rounded-lg border border-dark-700">
-                <svg class="w-5 h-5 text-atlas-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <div
+                v-if="!channel.is_private"
+                class="flex items-center gap-3 p-4 bg-dark-900 rounded-lg border border-dark-700"
+              >
+                <svg
+                  class="w-5 h-5 text-atlas-400 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
                 </svg>
                 <p class="text-sm text-dark-300">
                   Права синхронизированы с воркспейсом — все участники имеют доступ к этому каналу
@@ -477,15 +574,27 @@ const notifOptions: { value: NotificationLevel; label: string; description: stri
 
               <!-- Приватный: чекбокс-список -->
               <template v-if="channel.is_private">
-                <div v-if="permsError" class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                  <p class="text-sm text-red-400">{{ permsError }}</p>
+                <div
+                  v-if="permsError"
+                  class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg"
+                >
+                  <p class="text-sm text-red-400">
+                    {{ permsError }}
+                  </p>
                 </div>
 
-                <div v-if="permsLoading" class="text-sm text-dark-500 text-center py-4">Загрузка...</div>
+                <div
+                  v-if="permsLoading"
+                  class="text-sm text-dark-500 text-center py-4"
+                >
+                  Загрузка...
+                </div>
                 <template v-else>
                   <!-- Роли -->
                   <div v-if="allSelectableRoles.length">
-                    <p class="text-xs font-semibold text-dark-400 uppercase mb-2">Роли</p>
+                    <p class="text-xs font-semibold text-dark-400 uppercase mb-2">
+                      Роли
+                    </p>
                     <div class="space-y-1">
                       <div
                         v-for="role in allSelectableRoles"
@@ -501,7 +610,10 @@ const notifOptions: { value: NotificationLevel; label: string; description: stri
                           :model-value="draftRoleIds.has(role.id)"
                           :disabled="!canEditChannel"
                         />
-                        <span class="w-3 h-3 rounded-full shrink-0" :style="{ backgroundColor: role.color }" />
+                        <span
+                          class="w-3 h-3 rounded-full shrink-0"
+                          :style="{ backgroundColor: role.color }"
+                        />
                         <span class="flex-1 text-sm text-white">{{ role.name }}</span>
                       </div>
                     </div>
@@ -510,13 +622,15 @@ const notifOptions: { value: NotificationLevel; label: string; description: stri
                   <!-- Участники -->
                   <div v-if="allSelectableUsers.length || userSearch">
                     <div class="flex items-center justify-between mb-2 mt-1">
-                      <p class="text-xs font-semibold text-dark-400 uppercase">Участники</p>
+                      <p class="text-xs font-semibold text-dark-400 uppercase">
+                        Участники
+                      </p>
                       <input
                         v-model="userSearch"
                         type="text"
                         placeholder="Поиск..."
                         class="px-2 py-1 bg-dark-900 border border-dark-700 rounded text-xs text-dark-100 placeholder-dark-500 focus:border-atlas-500 focus:outline-none w-36"
-                      />
+                      >
                     </div>
                     <div class="space-y-1 max-h-52 overflow-y-auto">
                       <div
@@ -538,16 +652,32 @@ const notifOptions: { value: NotificationLevel; label: string; description: stri
                         </div>
                         <span class="flex-1 text-sm text-white truncate">{{ m.nickname ?? m.display_name }}</span>
                       </div>
-                      <p v-if="!allSelectableUsers.length" class="text-xs text-dark-500 px-2 py-1">Не найдено</p>
+                      <p
+                        v-if="!allSelectableUsers.length"
+                        class="text-xs text-dark-500 px-2 py-1"
+                      >
+                        Не найдено
+                      </p>
                     </div>
                   </div>
 
                   <!-- Кнопка Сохранить -->
-                  <div v-if="canEditChannel" class="pt-2 space-y-2">
-                    <div v-if="permsSaved" class="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                      <p class="text-xs text-emerald-400 text-center">Изменения сохранены</p>
+                  <div
+                    v-if="canEditChannel"
+                    class="pt-2 space-y-2"
+                  >
+                    <div
+                      v-if="permsSaved"
+                      class="p-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg"
+                    >
+                      <p class="text-xs text-emerald-400 text-center">
+                        Изменения сохранены
+                      </p>
                     </div>
-                    <Button :loading="permsSaving" @click="savePermissions">
+                    <Button
+                      :loading="permsSaving"
+                      @click="savePermissions"
+                    >
                       Сохранить права доступа
                     </Button>
                   </div>
@@ -556,12 +686,24 @@ const notifOptions: { value: NotificationLevel; label: string; description: stri
             </div>
 
             <!-- Notifications -->
-            <div v-else-if="activeTab === 'notifications'" class="space-y-4">
-              <h2 class="text-lg font-semibold text-white">Уведомления</h2>
-              <p class="text-sm text-dark-400">Настройте уведомления для канала <span class="text-white">#{{ channel.name }}</span></p>
+            <div
+              v-else-if="activeTab === 'notifications'"
+              class="space-y-4"
+            >
+              <h2 class="text-lg font-semibold text-white">
+                Уведомления
+              </h2>
+              <p class="text-sm text-dark-400">
+                Настройте уведомления для канала <span class="text-white">#{{ channel.name }}</span>
+              </p>
 
-              <div v-if="notifError" class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                <p class="text-sm text-red-400">{{ notifError }}</p>
+              <div
+                v-if="notifError"
+                class="p-3 bg-red-500/10 border border-red-500/20 rounded-lg"
+              >
+                <p class="text-sm text-red-400">
+                  {{ notifError }}
+                </p>
               </div>
 
               <div class="space-y-2">
@@ -580,11 +722,18 @@ const notifOptions: { value: NotificationLevel; label: string; description: stri
                     class="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0"
                     :class="notifLevel === opt.value ? 'border-atlas-500' : 'border-dark-600'"
                   >
-                    <div v-if="notifLevel === opt.value" class="w-2 h-2 rounded-full bg-atlas-500" />
+                    <div
+                      v-if="notifLevel === opt.value"
+                      class="w-2 h-2 rounded-full bg-atlas-500"
+                    />
                   </div>
                   <div>
-                    <p class="text-sm font-medium text-white">{{ opt.label }}</p>
-                    <p class="text-xs text-dark-400 mt-0.5">{{ opt.description }}</p>
+                    <p class="text-sm font-medium text-white">
+                      {{ opt.label }}
+                    </p>
+                    <p class="text-xs text-dark-400 mt-0.5">
+                      {{ opt.description }}
+                    </p>
                   </div>
                 </button>
               </div>
@@ -595,3 +744,4 @@ const notifOptions: { value: NotificationLevel; label: string; description: stri
     </Transition>
   </Teleport>
 </template>
+

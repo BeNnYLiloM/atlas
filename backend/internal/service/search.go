@@ -4,15 +4,32 @@ import (
 	"context"
 	"time"
 
+	"github.com/your-org/atlas/backend/internal/repository"
 	"github.com/your-org/atlas/backend/internal/repository/postgres"
 )
 
 type SearchService struct {
-	repo *postgres.SearchRepository
+	repo          *postgres.SearchRepository
+	workspaceRepo repository.WorkspaceRepository
+	channelRepo   repository.ChannelRepository
+	roleRepo      repository.WorkspaceRoleRepository
+	permRepo      repository.ChannelPermissionRepository
 }
 
-func NewSearchService(repo *postgres.SearchRepository) *SearchService {
-	return &SearchService{repo: repo}
+func NewSearchService(
+	repo *postgres.SearchRepository,
+	workspaceRepo repository.WorkspaceRepository,
+	channelRepo repository.ChannelRepository,
+	roleRepo repository.WorkspaceRoleRepository,
+	permRepo repository.ChannelPermissionRepository,
+) *SearchService {
+	return &SearchService{
+		repo:          repo,
+		workspaceRepo: workspaceRepo,
+		channelRepo:   channelRepo,
+		roleRepo:      roleRepo,
+		permRepo:      permRepo,
+	}
 }
 
 type SearchParams struct {
@@ -33,12 +50,26 @@ type SearchResponse struct {
 	Offset  int                      `json:"offset"`
 }
 
-func (s *SearchService) Search(ctx context.Context, params SearchParams) (*SearchResponse, error) {
+func (s *SearchService) Search(ctx context.Context, actorUserID string, params SearchParams) (*SearchResponse, error) {
 	if params.Query == "" {
 		return &SearchResponse{Results: []*postgres.SearchResult{}, Total: 0}, nil
 	}
 	if params.Limit <= 0 || params.Limit > 50 {
 		params.Limit = 20
+	}
+
+	if _, err := ensureWorkspaceMember(ctx, s.workspaceRepo, params.WorkspaceID, actorUserID); err != nil {
+		return nil, err
+	}
+
+	if params.ChannelID != "" {
+		channel, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, params.ChannelID, actorUserID)
+		if err != nil {
+			return nil, err
+		}
+		if channel.WorkspaceID != params.WorkspaceID {
+			return nil, ErrForbidden
+		}
 	}
 
 	results, total, err := s.repo.Search(ctx, postgres.SearchFilter{

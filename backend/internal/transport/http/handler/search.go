@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/your-org/atlas/backend/internal/service"
+	"github.com/your-org/atlas/backend/internal/transport/http/middleware"
 	"github.com/your-org/atlas/backend/internal/transport/http/response"
 )
 
@@ -26,9 +27,15 @@ func (h *SearchHandler) Search(c *gin.Context) {
 		return
 	}
 
+	workspaceID := c.Query("workspace_id")
+	if workspaceID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "query parameter 'workspace_id' is required"})
+		return
+	}
+
 	params := service.SearchParams{
 		Query:       q,
-		WorkspaceID: c.Query("workspace_id"),
+		WorkspaceID: workspaceID,
 		ChannelID:   c.Query("channel_id"),
 		UserID:      c.Query("user_id"),
 	}
@@ -55,7 +62,7 @@ func (h *SearchHandler) Search(c *gin.Context) {
 		}
 	}
 
-	result, err := h.searchService.Search(c.Request.Context(), params)
+	result, err := h.searchService.Search(c.Request.Context(), middleware.GetUserID(c), params)
 	if err != nil {
 		response.Error(c, err)
 		return

@@ -44,14 +44,16 @@ function selectWorkspace(id: string) {
           :src="workspaceStore.currentWorkspace.icon_url"
           class="w-full h-full object-cover"
           alt=""
-        />
+        >
         <span v-else>{{ workspaceStore.currentWorkspace?.name?.[0]?.toUpperCase() || 'A' }}</span>
       </div>
       <div class="flex-1 text-left min-w-0">
         <p class="font-semibold text-white truncate">
           {{ workspaceStore.currentWorkspace?.name || 'Выберите воркспейс' }}
         </p>
-        <p class="text-xs text-dark-400">Воркспейс</p>
+        <p class="text-xs text-dark-400">
+          Воркспейс
+        </p>
       </div>
       <svg
         class="w-5 h-5 text-dark-400 transition-transform"
@@ -60,7 +62,12 @@ function selectWorkspace(id: string) {
         stroke="currentColor"
         viewBox="0 0 24 24"
       >
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M19 9l-7 7-7-7"
+        />
       </svg>
     </button>
 
@@ -91,7 +98,7 @@ function selectWorkspace(id: string) {
                 :src="workspace.icon_url"
                 class="w-full h-full object-cover"
                 alt=""
-              />
+              >
               <span v-else>{{ workspace.name[0].toUpperCase() }}</span>
             </div>
             <span class="text-sm text-dark-100 truncate">{{ workspace.name }}</span>
@@ -101,7 +108,11 @@ function selectWorkspace(id: string) {
               fill="currentColor"
               viewBox="0 0 20 20"
             >
-              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+              <path
+                fill-rule="evenodd"
+                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                clip-rule="evenodd"
+              />
             </svg>
           </button>
         </div>
@@ -111,8 +122,18 @@ function selectWorkspace(id: string) {
             class="w-full p-2 flex items-center gap-2 text-dark-300 hover:text-white hover:bg-dark-700 rounded-lg transition-colors text-sm"
             @click="showCreateModal = true; showDropdown = false"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 4v16m8-8H4"
+              />
             </svg>
             Создать воркспейс
           </button>
@@ -121,18 +142,33 @@ function selectWorkspace(id: string) {
     </Transition>
 
     <!-- Create workspace modal -->
-    <Modal :open="showCreateModal" title="Создать воркспейс" @close="showCreateModal = false">
-      <form @submit.prevent="createWorkspace" class="space-y-4">
+    <Modal
+      :open="showCreateModal"
+      title="Создать воркспейс"
+      @close="showCreateModal = false"
+    >
+      <form
+        class="space-y-4"
+        @submit.prevent="createWorkspace"
+      >
         <Input
           v-model="newWorkspaceName"
           label="Название"
           placeholder="Моя компания"
         />
         <div class="flex gap-3 pt-2">
-          <Button variant="secondary" class="flex-1" @click="showCreateModal = false">
+          <Button
+            variant="secondary"
+            class="flex-1"
+            @click="showCreateModal = false"
+          >
             Отмена
           </Button>
-          <Button type="submit" :loading="creating" class="flex-1">
+          <Button
+            type="submit"
+            :loading="creating"
+            class="flex-1"
+          >
             Создать
           </Button>
         </div>

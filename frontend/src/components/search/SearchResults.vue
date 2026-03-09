@@ -56,10 +56,22 @@ function getChannelName(channelId: string): string {
       v-else-if="searchStore.query && !searchStore.loading"
       class="px-4 py-8 text-center"
     >
-      <svg class="w-10 h-10 text-dark-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      <svg
+        class="w-10 h-10 text-dark-600 mx-auto mb-3"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="1.5"
+          d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+        />
       </svg>
-      <p class="text-dark-500 text-sm">Ничего не найдено по запросу «{{ searchStore.query }}»</p>
+      <p class="text-dark-500 text-sm">
+        Ничего не найдено по запросу «{{ searchStore.query }}»
+      </p>
     </div>
   </div>
 </template>

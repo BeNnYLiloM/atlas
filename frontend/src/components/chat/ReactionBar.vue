@@ -3,7 +3,6 @@ import { ref } from 'vue'
 import { reactionsApi, QUICK_EMOJIS } from '@/api/reactions'
 import type { ReactionGroup } from '@/api/reactions'
 import { useWorkspaceStore } from '@/stores/workspace'
-import { useAuthStore } from '@/stores/auth'
 
 const props = defineProps<{
   messageId: string
@@ -15,7 +14,6 @@ const emit = defineEmits<{
 }>()
 
 const workspaceStore = useWorkspaceStore()
-const authStore = useAuthStore()
 const showPicker = ref(false)
 
 async function toggleReaction(emoji: string) {
@@ -70,8 +68,18 @@ function getReactionTitle(r: ReactionGroup): string {
         aria-label="Добавить реакцию"
         @click="showPicker = !showPicker"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
         </svg>
       </button>
 
@@ -87,8 +95,11 @@ function getReactionTitle(r: ReactionGroup): string {
           class="w-8 h-8 flex items-center justify-center rounded-lg text-lg hover:bg-dark-700 transition-colors"
           :aria-label="`Поставить реакцию ${emoji}`"
           @click="toggleReaction(emoji)"
-        >{{ emoji }}</button>
+        >
+          {{ emoji }}
+        </button>
       </div>
     </div>
   </div>
 </template>
+

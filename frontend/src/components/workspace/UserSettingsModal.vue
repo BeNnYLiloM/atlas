@@ -39,12 +39,17 @@ function toggleMentionSound() {
 </script>
 
 <template>
-  <Modal :open="open" title="Настройки уведомлений" @close="emit('close')">
+  <Modal
+    :open="open"
+    title="Настройки уведомлений"
+    @close="emit('close')"
+  >
     <div class="space-y-6 py-2">
-
       <!-- Звуки сообщений -->
       <div class="space-y-3">
-        <h3 class="text-sm font-semibold text-dark-200 uppercase tracking-wide">Звуки</h3>
+        <h3 class="text-sm font-semibold text-dark-200 uppercase tracking-wide">
+          Звуки
+        </h3>
 
         <label class="flex items-center justify-between gap-4 cursor-pointer group">
           <div>

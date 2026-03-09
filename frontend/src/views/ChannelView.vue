@@ -73,15 +73,32 @@ watch(
       </template>
 
       <!-- Empty state -->
-      <div v-else class="flex-1 flex items-center justify-center">
+      <div
+        v-else
+        class="flex-1 flex items-center justify-center"
+      >
         <div class="text-center">
           <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-dark-800 flex items-center justify-center">
-            <svg class="w-10 h-10 text-dark-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            <svg
+              class="w-10 h-10 text-dark-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.5"
+                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+              />
             </svg>
           </div>
-          <h3 class="text-lg font-semibold text-dark-200 mb-1">Выберите канал</h3>
-          <p class="text-dark-500 text-sm">Выберите канал из списка слева для начала общения</p>
+          <h3 class="text-lg font-semibold text-dark-200 mb-1">
+            Выберите канал
+          </h3>
+          <p class="text-dark-500 text-sm">
+            Выберите канал из списка слева для начала общения
+          </p>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { tasksApi, TASK_PRIORITY_COLORS, TASK_STATUS_LABELS } from '@/api/tasks'
+import { tasksApi, TASK_PRIORITY_COLORS } from '@/api/tasks'
 import type { Task, TaskStatus } from '@/api/tasks'
 
 const props = defineProps<{
@@ -31,16 +31,33 @@ function formatDate(dateStr: string | null): string {
   <div class="bg-dark-800 border border-dark-700 rounded-xl p-3 hover:border-dark-600 transition-colors group">
     <div class="flex items-start justify-between gap-2">
       <div class="flex-1 min-w-0">
-        <p class="text-sm font-medium text-dark-100 line-clamp-2">{{ task.title }}</p>
-        <p v-if="task.description" class="text-xs text-dark-500 mt-1 line-clamp-1">{{ task.description }}</p>
+        <p class="text-sm font-medium text-dark-100 line-clamp-2">
+          {{ task.title }}
+        </p>
+        <p
+          v-if="task.description"
+          class="text-xs text-dark-500 mt-1 line-clamp-1"
+        >
+          {{ task.description }}
+        </p>
       </div>
       <button
         class="opacity-0 group-hover:opacity-100 text-dark-600 hover:text-red-400 transition-all"
         aria-label="Удалить задачу"
         @click="deleteTask"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        <svg
+          class="w-4 h-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
         </svg>
       </button>
     </div>
@@ -52,7 +69,10 @@ function formatDate(dateStr: string | null): string {
       </span>
 
       <!-- Due date -->
-      <span v-if="task.due_date" class="text-xs text-dark-500">
+      <span
+        v-if="task.due_date"
+        class="text-xs text-dark-500"
+      >
         {{ formatDate(task.due_date) }}
       </span>
 
@@ -63,14 +83,19 @@ function formatDate(dateStr: string | null): string {
           class="text-xs text-dark-500 hover:text-green-400 transition-colors"
           title="Отметить готово"
           @click="changeStatus('done')"
-        >✓</button>
+        >
+          ✓
+        </button>
         <button
           v-if="task.status === 'todo'"
           class="text-xs text-dark-500 hover:text-blue-400 transition-colors"
           title="В работу"
           @click="changeStatus('in_progress')"
-        >▶</button>
+        >
+          ▶
+        </button>
       </div>
     </div>
   </div>
 </template>
+

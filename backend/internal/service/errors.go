@@ -11,8 +11,8 @@ var (
 	ErrWorkspaceNotFound  = errors.New("workspace not found")
 	ErrChannelNotFound    = errors.New("channel not found")
 	ErrMessageNotFound    = errors.New("message not found")
+	ErrTaskNotFound       = errors.New("task not found")
 	ErrNotMember          = errors.New("user is not a member of workspace")
 	ErrNotFound           = errors.New("not found")
 	ErrSlowmode           = errors.New("slowmode: wait before sending next message")
 )
-

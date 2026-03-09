@@ -114,7 +114,10 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="w-[360px] bg-dark-900 border border-dark-700 rounded-xl flex flex-col" style="height: 420px;">
+  <div
+    class="w-[360px] bg-dark-900 border border-dark-700 rounded-xl flex flex-col"
+    style="height: 420px;"
+  >
     <!-- Tab bar -->
     <div class="flex border-b border-dark-700 px-2 pt-2 gap-1 shrink-0">
       <button
@@ -133,33 +136,67 @@ onUnmounted(() => {
     </div>
 
     <!-- Search (GIF / Sticker) -->
-    <div v-if="activeTab !== 'emoji'" class="px-3 pt-2 pb-1 shrink-0">
+    <div
+      v-if="activeTab !== 'emoji'"
+      class="px-3 pt-2 pb-1 shrink-0"
+    >
       <input
         v-model="searchQuery"
         type="text"
         :placeholder="activeTab === 'gif' ? 'Поиск GIF...' : 'Поиск стикеров...'"
         class="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-1.5 text-sm text-dark-100 placeholder:text-dark-500 focus:outline-none focus:border-atlas-500/60"
         @input="onSearch"
-      />
+      >
     </div>
 
     <!-- Content -->
     <div class="flex-1 overflow-hidden">
       <!-- Emoji tab -->
-      <div v-show="activeTab === 'emoji'" ref="containerRef" class="emoji-picker-host h-full" />
+      <div
+        v-show="activeTab === 'emoji'"
+        ref="containerRef"
+        class="emoji-picker-host h-full"
+      />
 
       <!-- GIF / Sticker grid -->
-      <div v-if="activeTab !== 'emoji'" class="h-full overflow-y-auto p-2">
-        <div v-if="loading" class="flex items-center justify-center h-full">
-          <svg class="animate-spin w-6 h-6 text-atlas-400" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+      <div
+        v-if="activeTab !== 'emoji'"
+        class="h-full overflow-y-auto p-2"
+      >
+        <div
+          v-if="loading"
+          class="flex items-center justify-center h-full"
+        >
+          <svg
+            class="animate-spin w-6 h-6 text-atlas-400"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            />
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
           </svg>
         </div>
-        <div v-else-if="(activeTab === 'gif' ? gifResults : stickerResults).length === 0" class="flex items-center justify-center h-full text-dark-500 text-sm">
+        <div
+          v-else-if="(activeTab === 'gif' ? gifResults : stickerResults).length === 0"
+          class="flex items-center justify-center h-full text-dark-500 text-sm"
+        >
           Ничего не найдено
         </div>
-        <div v-else class="columns-3 gap-1.5 space-y-1.5">
+        <div
+          v-else
+          class="columns-3 gap-1.5 space-y-1.5"
+        >
           <div
             v-for="item in (activeTab === 'gif' ? gifResults : stickerResults)"
             :key="item.id"
@@ -171,7 +208,7 @@ onUnmounted(() => {
               :alt="item.title"
               class="w-full object-cover"
               loading="lazy"
-            />
+            >
           </div>
         </div>
       </div>
