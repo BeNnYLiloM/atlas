@@ -1,5 +1,6 @@
 import { ref, onUnmounted } from 'vue'
 import { useMessagesStore } from '@/stores'
+import { createAuthenticatedWebSocket } from '@/api/websocket'
 import type { Message } from '@/types'
 
 interface WSEvent {
@@ -19,8 +20,7 @@ export function useWebSocket() {
     const token = localStorage.getItem('atlas_token')
     if (!token) return
 
-    const wsUrl = `ws://${window.location.host}/ws?token=${token}`
-    socket.value = new WebSocket(wsUrl)
+    socket.value = createAuthenticatedWebSocket(token)
 
     socket.value.onopen = () => {
       connected.value = true
@@ -50,7 +50,7 @@ export function useWebSocket() {
 
   function handleEvent(event: WSEvent) {
     console.log('[WS] Received event:', event.type, event.payload)
-    
+
     switch (event.type) {
       case 'message':
         messagesStore.addMessage(event.payload as Message)
@@ -64,12 +64,10 @@ export function useWebSocket() {
         break
       }
       case 'typing': {
-        // TODO: обработать typing indicator
         console.log('[WS] Typing event:', event.payload)
         break
       }
       case 'presence': {
-        // TODO: обработать presence
         console.log('[WS] Presence event:', event.payload)
         break
       }
@@ -129,4 +127,3 @@ export function useWebSocket() {
     unsubscribe,
   }
 }
-

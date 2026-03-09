@@ -2,6 +2,7 @@ package ws
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"net/url"
@@ -12,9 +13,15 @@ import (
 	"github.com/your-org/atlas/backend/internal/service"
 )
 
+const (
+	wsAuthProtocol        = "atlas.v1"
+	wsTokenProtocolPrefix = "bearer."
+)
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	Subprotocols:    []string{wsAuthProtocol},
 	CheckOrigin: func(r *http.Request) bool {
 		origin := r.Header.Get("Origin")
 		if origin == "" {
@@ -53,13 +60,43 @@ func NewHandler(hub *Hub, authService *service.AuthService, access AccessChecker
 	}
 }
 
+func extractTokenFromWebSocketRequest(r *http.Request) (string, error) {
+	protocols := websocket.Subprotocols(r)
+	if len(protocols) == 0 {
+		return "", errors.New("missing websocket auth protocols")
+	}
+
+	hasAuthProtocol := false
+	for _, protocol := range protocols {
+		if protocol == wsAuthProtocol {
+			hasAuthProtocol = true
+			continue
+		}
+		if strings.HasPrefix(protocol, wsTokenProtocolPrefix) {
+			if !hasAuthProtocol {
+				return "", errors.New("missing websocket auth protocol")
+			}
+			token := strings.TrimPrefix(protocol, wsTokenProtocolPrefix)
+			if token == "" {
+				return "", errors.New("empty websocket token")
+			}
+			return token, nil
+		}
+	}
+
+	if !hasAuthProtocol {
+		return "", errors.New("missing websocket auth protocol")
+	}
+
+	return "", errors.New("missing websocket token protocol")
+}
+
 // HandleWebSocket обрабатывает WebSocket подключения
 func (h *Handler) HandleWebSocket(c *gin.Context) {
-	// Получаем токен из query параметра
-	token := c.Query("token")
-	if token == "" {
-		log.Println("[WS] Missing token")
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing token"})
+	token, err := extractTokenFromWebSocketRequest(c.Request)
+	if err != nil {
+		log.Printf("[WS] Auth handshake failed: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing websocket authentication"})
 		return
 	}
 

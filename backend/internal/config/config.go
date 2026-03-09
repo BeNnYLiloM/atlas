@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 )
 
 type Config struct {
@@ -40,6 +41,7 @@ type MinIOConfig struct {
 	SecretKey string
 	Bucket    string
 	UseSSL    bool
+	PublicURL string
 }
 
 type LiveKitConfig struct {
@@ -79,7 +81,8 @@ func Load() *Config {
 			AccessKey: getEnv("MINIO_ACCESS_KEY", "minioadmin"),
 			SecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
 			Bucket:    getEnv("MINIO_BUCKET", "atlas"),
-			UseSSL:    false,
+			UseSSL:    getBoolEnv("MINIO_USE_SSL", false),
+			PublicURL: getEnv("MINIO_PUBLIC_URL", ""),
 		},
 		LiveKit: LiveKitConfig{
 			Host:      getEnv("LIVEKIT_HOST", "localhost:7880"),
@@ -101,3 +104,16 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+func getBoolEnv(key string, defaultValue bool) bool {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return defaultValue
+	}
+
+	return parsed
+}

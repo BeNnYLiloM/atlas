@@ -1,15 +1,16 @@
 import axios from 'axios'
 import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim()
+
 const apiClient: AxiosInstance = axios.create({
-  baseURL: '/api/v1',
+  baseURL: configuredApiUrl || '/api/v1',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
 })
 
-// Request interceptor — добавляем токен авторизации
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('atlas_token')
@@ -21,7 +22,6 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 )
 
-// Response interceptor — обработка ошибок авторизации
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -34,4 +34,3 @@ apiClient.interceptors.response.use(
 )
 
 export default apiClient
-

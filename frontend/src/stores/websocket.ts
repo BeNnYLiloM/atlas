@@ -6,6 +6,7 @@ import { useThreadStore } from './thread'
 import { useWorkspaceStore } from './workspace'
 import { useAuthStore } from './auth'
 import { playNotificationSound, isSoundEnabled, isMentionSoundEnabled } from '@/utils/notificationSound'
+import { createAuthenticatedWebSocket } from '@/api/websocket'
 import type { Message, Channel, ChannelCategory } from '@/types'
 
 function showBrowserNotification(title: string, body: string, channelId: string) {
@@ -14,7 +15,7 @@ function showBrowserNotification(title: string, body: string, channelId: string)
   const n = new Notification(title, {
     body,
     icon: '/favicon.ico',
-    tag: channelId, // одно уведомление на канал
+    tag: channelId,
   })
   n.onclick = () => {
     window.focus()
@@ -45,10 +46,8 @@ export const useWebSocketStore = defineStore('websocket', () => {
       return
     }
 
-    const wsUrl = `ws://${window.location.host}/ws?token=${token}`
-    console.log('[WS] Connecting to:', wsUrl)
-    
-    socket.value = new WebSocket(wsUrl)
+    console.log('[WS] Connecting to realtime endpoint')
+    socket.value = createAuthenticatedWebSocket(token)
 
     socket.value.onopen = () => {
       connected.value = true
@@ -81,21 +80,19 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
   function handleEvent(event: WSEvent) {
     console.log('[WS] ← Received:', event.type, event.payload)
-    
+
     const messagesStore = useMessagesStore()
     const channelsStore = useChannelsStore()
     const threadStore = useThreadStore()
     const workspaceStore = useWorkspaceStore()
-    
+
     switch (event.type) {
-      // Message events
       case 'message': {
         const { channel_id, message } = event.payload as { channel_id: string, message: Message }
         const authStore = useAuthStore()
 
         messagesStore.addMessage(message)
 
-        // Игнорируем свои сообщения
         if (message.user_id === authStore.user?.id) break
 
         const level = channelsStore.getNotificationLevel(channel_id)
@@ -105,7 +102,6 @@ export const useWebSocketStore = defineStore('websocket', () => {
           (myDisplayName !== '' && message.content.includes(`@${myDisplayName}`)) ||
           message.content.includes('@everyone')
 
-        // Увеличиваем счётчики с учётом уровня уведомлений
         if (!isCurrentChannel) {
           if (level === 'all') {
             channelsStore.incrementUnread(channel_id)
@@ -117,20 +113,17 @@ export const useWebSocketStore = defineStore('websocket', () => {
           }
         }
 
-        // Sound + Browser notification
         const shouldNotify =
           level === 'all' ||
           (level === 'mentions' && isMentionedInMessage)
 
         if (shouldNotify) {
-          // Звук — всегда когда пришло релевантное сообщение (даже в открытом канале)
           if (isMentionedInMessage && isMentionSoundEnabled()) {
             playNotificationSound('mention')
           } else if (!isMentionedInMessage && isSoundEnabled()) {
             playNotificationSound('message')
           }
 
-          // Browser notification — только когда вкладка не в фокусе
           if (document.visibilityState !== 'visible') {
             const channel = channelsStore.channels.find(c => c.id === channel_id)
             const channelName = channel ? `#${channel.name}` : 'канал'
@@ -144,54 +137,51 @@ export const useWebSocketStore = defineStore('websocket', () => {
         }
         break
       }
-      
+
       case 'thread_reply': {
         const { parent_id, message } = event.payload as { channel_id: string, parent_id: string, message: Message }
         threadStore.addThreadReply(parent_id, message)
         console.log('[WS] Thread reply added to parent:', parent_id)
         break
       }
-      
+
       case 'message_updated': {
         const { message } = event.payload as { channel_id: string, message: Message }
         messagesStore.updateMessage(message)
-        
-        // Если это треды, обновляем и там
+
         if (message.parent_id) {
           threadStore.updateThreadReply(message.parent_id, message)
         }
         break
       }
-      
+
       case 'message_deleted': {
         const { channel_id, message_id } = event.payload as { channel_id: string; message_id: string }
         messagesStore.deleteMessage(channel_id, message_id)
         break
       }
-      
-      // Channel events
+
       case 'channel_created': {
         const channel = event.payload as Channel
         channelsStore.addChannel(channel)
         console.log('[WS] Channel created:', channel.name)
         break
       }
-      
+
       case 'channel_updated': {
         const channel = event.payload as Channel
         channelsStore.updateChannel(channel)
         console.log('[WS] Channel updated:', channel.name)
         break
       }
-      
+
       case 'channel_deleted': {
         const { channel_id } = event.payload as { workspace_id: string, channel_id: string }
         channelsStore.removeChannel(channel_id)
         console.log('[WS] Channel deleted:', channel_id)
         break
       }
-      
-      // Category events
+
       case 'category_created': {
         const cat = event.payload as ChannelCategory
         channelsStore.addCategory(cat)
@@ -210,29 +200,25 @@ export const useWebSocketStore = defineStore('websocket', () => {
         break
       }
 
-      // Reaction events (обновление UI через reload в компоненте)
       case 'reaction_added':
       case 'reaction_removed': {
-        // Компоненты сами перезагружают реакции при изменении
         console.log('[WS] Reaction event:', event.type, event.payload)
         break
       }
 
-      // Workspace events
       case 'workspace_updated': {
         const workspace = event.payload as import('@/types').Workspace
         workspaceStore.applyWorkspaceUpdate(workspace)
         break
       }
 
-      // Member events
       case 'member_added': {
         const data = event.payload as { workspace_id: string; user_id: string; role: string }
         workspaceStore.addMember(data)
         console.log('[WS] Member added:', data.user_id)
         break
       }
-      
+
       case 'member_removed': {
         const data = event.payload as { workspace_id: string; user_id: string }
         workspaceStore.applyMemberRemove(data)
@@ -243,29 +229,26 @@ export const useWebSocketStore = defineStore('websocket', () => {
       case 'member_updated': {
         const data = event.payload as { workspace_id: string; user_id: string; role?: string; nickname?: string | null }
         if (data.role || data.nickname !== undefined) {
-          // Обновляем системную роль/никнейм локально
           workspaceStore.applyMemberUpdate(data)
         } else {
-          // Изменились кастомные роли — перезагружаем список участников
           workspaceStore.fetchMembers(data.workspace_id)
         }
         break
       }
-      
-      // Other events
+
       case 'typing': {
         const { channel_id, user_id, typing } = event.payload as { channel_id: string, user_id: string, typing: boolean }
         channelsStore.setUserTyping(channel_id, user_id, typing)
         break
       }
-      
+
       case 'presence': {
         const { user_id, status } = event.payload as { user_id: string, status: string }
         workspaceStore.setPresence(user_id, status)
         console.log('[WS] Presence update:', user_id, '->', status)
         break
       }
-      
+
       default:
         console.warn('[WS] Unknown event type:', event)
     }
@@ -307,14 +290,13 @@ export const useWebSocketStore = defineStore('websocket', () => {
 
   function subscribeToWorkspace(workspaceId: string) {
     console.log('[WS] 📡 Subscribing to workspace:', workspaceId)
-    
-    // Если WebSocket еще не готов, ждем и пробуем снова
+
     if (!connected.value || socket.value?.readyState !== WebSocket.OPEN) {
       console.warn('[WS] WebSocket not ready, waiting...')
       setTimeout(() => subscribeToWorkspace(workspaceId), 100)
       return
     }
-    
+
     send('subscribe_workspace', { workspace_id: workspaceId })
   }
 
@@ -345,4 +327,3 @@ export const useWebSocketStore = defineStore('websocket', () => {
     unsubscribe,
   }
 })
-
