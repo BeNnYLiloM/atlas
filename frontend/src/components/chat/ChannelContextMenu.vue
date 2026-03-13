@@ -51,19 +51,19 @@ onUnmounted(() => document.removeEventListener('mousedown', onClickOutside))
   <Teleport to="body">
     <div
       id="channel-ctx-menu"
-      class="fixed z-[200] w-56 bg-dark-800 border border-dark-600 rounded-lg shadow-2xl py-1 text-sm"
+      class="fixed z-[200] w-56 bg-elevated border border-strong rounded-lg shadow-2xl py-1 text-sm"
       :style="{ top: `${y}px`, left: `${x}px` }"
     >
       <!-- Пометить как прочитанное -->
       <button
-        class="w-full flex items-center px-3 py-1.5 text-dark-200 hover:bg-dark-700 hover:text-white transition-colors"
+        class="w-full flex items-center px-3 py-1.5 text-secondary hover:bg-overlay hover:text-primary transition-colors"
         @mouseenter="submenu = null"
         @click="emit('markRead'); emit('close')"
       >
         Пометить как прочитанное
       </button>
 
-      <div class="my-1 border-t border-dark-700" />
+      <div class="my-1 border-t border-default" />
 
       <!-- Заглушить канал -->
       <div
@@ -72,11 +72,11 @@ onUnmounted(() => document.removeEventListener('mousedown', onClickOutside))
       >
         <button
           class="w-full flex items-center justify-between px-3 py-1.5 transition-colors"
-          :class="submenu === 'mute' ? 'bg-dark-700 text-white' : 'text-dark-200 hover:bg-dark-700 hover:text-white'"
+          :class="submenu === 'mute' ? 'bg-overlay text-primary' : 'text-secondary hover:bg-overlay hover:text-primary'"
         >
           <span>Заглушить канал</span>
           <svg
-            class="w-3.5 h-3.5 text-dark-400"
+            class="w-3.5 h-3.5 text-muted"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -93,12 +93,12 @@ onUnmounted(() => document.removeEventListener('mousedown', onClickOutside))
         <!-- Подменю: заглушить -->
         <div
           v-if="submenu === 'mute'"
-          class="absolute left-full top-0 ml-1 w-44 bg-dark-800 border border-dark-600 rounded-lg shadow-2xl py-1"
+          class="absolute left-full top-0 ml-1 w-44 bg-elevated border border-strong rounded-lg shadow-2xl py-1"
         >
           <button
             v-for="opt in muteOptions"
             :key="opt.label"
-            class="w-full flex items-center px-3 py-1.5 text-dark-200 hover:bg-dark-700 hover:text-white transition-colors"
+            class="w-full flex items-center px-3 py-1.5 text-secondary hover:bg-overlay hover:text-primary transition-colors"
             @click="emit('mute', opt.minutes); emit('close')"
           >
             {{ opt.label }}
@@ -113,16 +113,16 @@ onUnmounted(() => document.removeEventListener('mousedown', onClickOutside))
       >
         <button
           class="w-full flex items-center justify-between px-3 py-1.5 transition-colors"
-          :class="submenu === 'notifications' ? 'bg-dark-700 text-white' : 'text-dark-200 hover:bg-dark-700 hover:text-white'"
+          :class="submenu === 'notifications' ? 'bg-overlay text-primary' : 'text-secondary hover:bg-overlay hover:text-primary'"
         >
           <div class="text-left">
             <p>Параметры уведомлений</p>
-            <p class="text-xs text-dark-400 mt-0.5">
+            <p class="text-xs text-muted mt-0.5">
               {{ notifOptions.find(o => o.value === notificationLevel)?.label }}
             </p>
           </div>
           <svg
-            class="w-3.5 h-3.5 text-dark-400 shrink-0"
+            class="w-3.5 h-3.5 text-muted shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -139,20 +139,20 @@ onUnmounted(() => document.removeEventListener('mousedown', onClickOutside))
         <!-- Подменю: уведомления -->
         <div
           v-if="submenu === 'notifications'"
-          class="absolute left-full top-0 ml-1 w-52 bg-dark-800 border border-dark-600 rounded-lg shadow-2xl py-1"
+          class="absolute left-full top-0 ml-1 w-52 bg-elevated border border-strong rounded-lg shadow-2xl py-1"
         >
           <button
             v-for="opt in notifOptions"
             :key="opt.value"
             class="w-full flex items-center gap-2 px-3 py-2 transition-colors"
             :class="notificationLevel === opt.value
-              ? 'text-atlas-400 bg-atlas-600/10'
-              : 'text-dark-200 hover:bg-dark-700 hover:text-white'"
+              ? 'text-accent bg-accent-dim'
+              : 'text-secondary hover:bg-overlay hover:text-primary'"
             @click="emit('setNotification', opt.value); emit('close')"
           >
             <svg
               class="w-3.5 h-3.5 shrink-0"
-              :class="notificationLevel === opt.value ? 'text-atlas-400' : 'text-transparent'"
+              :class="notificationLevel === opt.value ? 'text-accent' : 'text-transparent'"
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -166,7 +166,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onClickOutside))
               <p class="text-sm">
                 {{ opt.label }}
               </p>
-              <p class="text-xs text-dark-500">
+              <p class="text-xs text-subtle">
                 {{ opt.description }}
               </p>
             </div>
@@ -176,9 +176,9 @@ onUnmounted(() => document.removeEventListener('mousedown', onClickOutside))
 
       <!-- Настройки и удаление канала (только admin/owner) -->
       <template v-if="isAdmin">
-        <div class="my-1 border-t border-dark-700" />
+        <div class="my-1 border-t border-default" />
         <button
-          class="w-full flex items-center px-3 py-1.5 text-dark-200 hover:bg-dark-700 hover:text-white transition-colors"
+          class="w-full flex items-center px-3 py-1.5 text-secondary hover:bg-overlay hover:text-primary transition-colors"
           @mouseenter="submenu = null"
           @click="emit('openSettings'); emit('close')"
         >

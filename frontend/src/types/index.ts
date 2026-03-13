@@ -1,9 +1,14 @@
+export type UserStatus = 'online' | 'away' | 'dnd' | 'offline'
+
 // User types
 export interface User {
   id: string
   email: string
   display_name: string
   avatar_url: string | null
+  status: UserStatus
+  custom_status: string | null
+  last_seen: string | null
   created_at: string
 }
 
@@ -16,6 +21,11 @@ export interface UserCreate {
 export interface UserLogin {
   email: string
   password: string
+}
+
+export interface UserUpdate {
+  display_name?: string
+  avatar_url?: string
 }
 
 // Workspace types

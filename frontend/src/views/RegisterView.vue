@@ -76,14 +76,14 @@ async function onSubmit() {
   <div class="min-h-screen flex items-center justify-center bg-pattern p-4">
     <!-- Декоративные элементы фона -->
     <div class="absolute inset-0 overflow-hidden pointer-events-none">
-      <div class="absolute -top-40 -left-40 w-80 h-80 bg-atlas-600/10 rounded-full blur-3xl" />
+      <div class="absolute -top-40 -left-40 w-80 h-80 bg-accent-dim rounded-full blur-3xl" />
       <div class="absolute -bottom-40 -right-40 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl" />
     </div>
 
     <div class="w-full max-w-md relative">
       <!-- Логотип -->
       <div class="text-center mb-8">
-        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-atlas-500 to-atlas-700 mb-4 shadow-lg shadow-atlas-500/25">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-dim)] mb-4 shadow-lg shadow-[var(--accent-shadow-color)]">
           <svg
             class="w-8 h-8 text-white"
             fill="none"
@@ -101,14 +101,14 @@ async function onSubmit() {
         <h1 class="text-3xl font-bold text-gradient">
           Atlas
         </h1>
-        <p class="text-dark-400 mt-2">
+        <p class="text-muted mt-2">
           Создайте аккаунт
         </p>
       </div>
 
       <!-- Форма -->
       <div class="card">
-        <h2 class="text-xl font-semibold text-white mb-6">
+        <h2 class="text-xl font-semibold text-primary mb-6">
           Регистрация
         </h2>
 
@@ -165,11 +165,11 @@ async function onSubmit() {
         </form>
 
         <div class="mt-6 text-center">
-          <p class="text-dark-400 text-sm">
+          <p class="text-muted text-sm">
             Уже есть аккаунт?
             <router-link
               to="/login"
-              class="text-atlas-400 hover:text-atlas-300 font-medium"
+              class="text-accent hover:text-accent-strong font-medium"
             >
               Войти
             </router-link>
@@ -178,7 +178,7 @@ async function onSubmit() {
       </div>
 
       <!-- Футер -->
-      <p class="text-center text-dark-500 text-xs mt-8">
+      <p class="text-center text-subtle text-xs mt-8">
         © 2025 Atlas. Корпоративная платформа для коммуникаций.
       </p>
     </div>

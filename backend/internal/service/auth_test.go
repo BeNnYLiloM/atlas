@@ -254,3 +254,41 @@ func TestAuthService_RefreshRotatesSession(t *testing.T) {
 		t.Fatalf("expected old refresh token reuse to be rejected, got %v", err)
 	}
 }
+
+func TestAuthService_UpdateProfile(t *testing.T) {
+	authSvc := newTestAuthService()
+
+	user, _, _, err := authSvc.Register(context.Background(), domain.UserCreate{
+		Email: "profile@test.com", DisplayName: "Original Name", Password: "pass12345",
+	}, service.AuthSessionMetadata{})
+	if err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+
+	newName := "Updated Name"
+	newAvatar := "https://cdn.atlas.test/avatar.png"
+	updatedUser, err := authSvc.UpdateProfile(context.Background(), user.ID, domain.UserUpdate{
+		DisplayName: &newName,
+		AvatarURL:   &newAvatar,
+	})
+	if err != nil {
+		t.Fatalf("UpdateProfile failed: %v", err)
+	}
+	if updatedUser.DisplayName != newName {
+		t.Fatalf("expected display name %q, got %q", newName, updatedUser.DisplayName)
+	}
+	if updatedUser.AvatarURL == nil || *updatedUser.AvatarURL != newAvatar {
+		t.Fatal("expected avatar url to be updated")
+	}
+
+	emptyAvatar := ""
+	updatedUser, err = authSvc.UpdateProfile(context.Background(), user.ID, domain.UserUpdate{
+		AvatarURL: &emptyAvatar,
+	})
+	if err != nil {
+		t.Fatalf("UpdateProfile clear avatar failed: %v", err)
+	}
+	if updatedUser.AvatarURL != nil {
+		t.Fatal("expected avatar url to be cleared")
+	}
+}

@@ -604,26 +604,26 @@ onUnmounted(() => {
 
     <!-- Input area with drag-drop + mention dropdown anchor -->
     <div
-      class="relative bg-dark-800 rounded-xl border border-dark-700 focus-within:border-atlas-500/50 transition-colors"
+      class="relative bg-elevated rounded-xl border border-default focus-within:border-accent/50 transition-colors"
       @dragover.prevent
       @drop="onDropFiles"
     >
       <!-- @mention dropdown — абсолютно над инпутом -->
       <div
         v-if="mentionActive && mentionItems.length"
-        class="absolute bottom-full left-0 right-0 mb-2 bg-dark-800 border border-dark-600 rounded-xl shadow-xl overflow-hidden z-50"
+        class="absolute bottom-full left-0 right-0 mb-2 bg-elevated border border-strong rounded-xl shadow-xl overflow-hidden z-50"
       >
         <div class="max-h-64 overflow-y-auto py-1">
           <!-- Группа: Роли -->
           <template v-if="mentionRoles.length">
             <div class="px-3 pt-1.5 pb-0.5">
-              <span class="text-[10px] font-semibold uppercase tracking-wider text-dark-400">Роли</span>
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-muted">Роли</span>
             </div>
             <button
               v-for="item in mentionRoles"
               :key="'role-' + item.id"
               class="w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors"
-              :class="mentionItems.indexOf(item) === mentionIndex ? 'bg-atlas-600/20 text-white' : 'text-dark-200 hover:bg-dark-700'"
+              :class="mentionItems.indexOf(item) === mentionIndex ? 'bg-accent-dim-md text-primary' : 'text-secondary hover:bg-overlay'"
               @mousedown.prevent="insertMention(item)"
               @mousemove="mentionIndex = mentionItems.indexOf(item)"
             >
@@ -649,23 +649,23 @@ onUnmounted(() => {
           <!-- Разделитель между группами -->
           <div
             v-if="mentionRoles.length && mentionMembers.length"
-            class="my-1 mx-3 border-t border-dark-700"
+            class="my-1 mx-3 border-t border-default"
           />
 
           <!-- Группа: Участники -->
           <template v-if="mentionMembers.length">
             <div class="px-3 pt-1.5 pb-0.5">
-              <span class="text-[10px] font-semibold uppercase tracking-wider text-dark-400">Участники</span>
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-muted">Участники</span>
             </div>
             <button
               v-for="item in mentionMembers"
               :key="'member-' + item.id"
               class="w-full flex items-center gap-2.5 px-3 py-1.5 text-left transition-colors"
-              :class="mentionItems.indexOf(item) === mentionIndex ? 'bg-atlas-600/20 text-white' : 'text-dark-200 hover:bg-dark-700'"
+              :class="mentionItems.indexOf(item) === mentionIndex ? 'bg-accent-dim-md text-primary' : 'text-secondary hover:bg-overlay'"
               @mousedown.prevent="insertMention(item)"
               @mousemove="mentionIndex = mentionItems.indexOf(item)"
             >
-              <span class="w-6 h-6 rounded-full bg-atlas-600 flex items-center justify-center text-white text-xs font-semibold shrink-0">
+              <span class="w-6 h-6 rounded-full bg-accent flex items-center justify-center text-white text-xs font-semibold shrink-0">
                 {{ item.display[0]?.toUpperCase() }}
               </span>
               <span class="text-sm truncate">{{ item.display }}</span>
@@ -682,7 +682,7 @@ onUnmounted(() => {
           role="textbox"
           aria-multiline="true"
           :aria-placeholder="placeholder"
-          class="editor w-full px-4 pt-3 pb-2 text-dark-100 text-sm leading-relaxed focus:outline-none min-h-[44px] max-h-[200px] overflow-y-auto break-words"
+          class="editor w-full px-4 pt-3 pb-2 text-primary text-sm leading-relaxed focus:outline-none min-h-[44px] max-h-[200px] overflow-y-auto break-words"
           @input="onInput"
           @keydown="onKeydown"
           @paste="onPaste"
@@ -691,12 +691,12 @@ onUnmounted(() => {
         />
         <span
           v-if="isEmpty"
-          class="pointer-events-none absolute left-4 top-3 text-dark-500 text-sm select-none"
+          class="pointer-events-none absolute left-4 top-3 text-subtle text-sm select-none"
         >{{ placeholder }}</span>
       </div>
 
       <!-- Toolbar -->
-      <div class="flex items-center gap-1 px-3 py-1.5 border-t border-dark-700/50">
+      <div class="flex items-center gap-1 px-3 py-1.5 border-t border-default/50">
         <input
           ref="fileInputRef"
           type="file"
@@ -705,7 +705,7 @@ onUnmounted(() => {
           @change="onFileSelect"
         >
         <button
-          class="p-2 rounded text-dark-500 hover:text-dark-300 hover:bg-dark-700"
+          class="p-2 rounded text-subtle hover:text-tertiary hover:bg-overlay"
           title="Прикрепить файл (до 10 MB)"
           @click="fileInputRef?.click()"
         >
@@ -725,8 +725,8 @@ onUnmounted(() => {
         </button>
         <div class="relative emoji-picker-wrapper">
           <button
-            class="p-2 rounded text-dark-500 hover:text-dark-300 hover:bg-dark-700"
-            :class="{ 'text-atlas-400': showEmojiPicker }"
+            class="p-2 rounded text-subtle hover:text-tertiary hover:bg-overlay"
+            :class="{ 'text-accent': showEmojiPicker }"
             title="Эмодзи"
             @click="toggleEmojiPicker"
           >
@@ -776,7 +776,7 @@ onUnmounted(() => {
 
         <span
           v-else
-          class="text-xs text-dark-600 mr-2"
+          class="text-xs text-faint mr-2"
         >Enter — отправить, Shift+Enter — перенос</span>
 
         <!-- Send button -->
@@ -784,8 +784,8 @@ onUnmounted(() => {
           class="p-2 rounded-lg transition-colors"
           :class="[
             hasContent && !isSlowmodeActive
-              ? 'bg-atlas-600 text-white hover:bg-atlas-500'
-              : 'text-dark-500 cursor-not-allowed'
+              ? 'bg-accent text-white hover:bg-accent-light'
+              : 'text-subtle cursor-not-allowed'
           ]"
           :disabled="!hasContent || messagesStore.sending || uploading || isSlowmodeActive"
           @click="sendMessage"

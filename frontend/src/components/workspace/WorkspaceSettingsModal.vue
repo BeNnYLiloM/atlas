@@ -510,15 +510,15 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
     >
       <div
         v-if="props.open"
-        class="fixed inset-0 z-50 flex bg-dark-950/80 backdrop-blur-sm"
+        class="fixed inset-0 z-50 flex bg-base/80 backdrop-blur-sm"
         @click.self="emit('close')"
         @click="closeRolePopup"
       >
         <!-- Settings layout: sidebar + content -->
         <div class="m-auto flex w-full max-w-4xl h-[640px] card overflow-hidden p-0">
           <!-- Sidebar -->
-          <div class="w-52 bg-dark-900 border-r border-dark-700 flex flex-col p-3 shrink-0">
-            <p class="text-xs font-semibold text-dark-400 uppercase px-2 mb-2 truncate">
+          <div class="w-52 bg-surface border-r border-default flex flex-col p-3 shrink-0">
+            <p class="text-xs font-semibold text-muted uppercase px-2 mb-2 truncate">
               {{ workspaceStore.currentWorkspace?.name }}
             </p>
 
@@ -532,16 +532,16 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
               :key="tab.id"
               class="w-full text-left px-2 py-1.5 rounded-md text-sm transition-colors"
               :class="activeTab === tab.id
-                ? 'bg-dark-700 text-white'
-                : 'text-dark-300 hover:bg-dark-800 hover:text-dark-100'"
+                ? 'bg-overlay text-primary'
+                : 'text-tertiary hover:bg-elevated hover:text-primary'"
               @click="activeTab = tab.id as Tab"
             >
               {{ tab.label }}
             </button>
 
-            <div class="mt-auto pt-3 border-t border-dark-700">
+            <div class="mt-auto pt-3 border-t border-default">
               <button
-                class="w-full text-left px-2 py-1.5 rounded-md text-sm text-dark-400 hover:bg-dark-800 transition-colors"
+                class="w-full text-left px-2 py-1.5 rounded-md text-sm text-muted hover:bg-elevated transition-colors"
                 @click="emit('close')"
               >
                 Закрыть
@@ -556,17 +556,17 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
               v-if="activeTab === 'general'"
               class="flex-1 overflow-y-auto p-6 space-y-6"
             >
-              <h2 class="text-lg font-semibold text-white">
+              <h2 class="text-lg font-semibold text-primary">
                 Основные настройки
               </h2>
 
               <div class="space-y-4">
                 <!-- Иконка воркспейса -->
                 <div>
-                  <label class="block text-sm font-medium text-dark-300 mb-2">Иконка воркспейса</label>
+                  <label class="block text-sm font-medium text-tertiary mb-2">Иконка воркспейса</label>
                   <div class="flex items-center gap-4">
                     <div
-                      class="relative w-20 h-20 rounded-2xl overflow-hidden bg-dark-800 border-2 border-dark-700 cursor-pointer group shrink-0"
+                      class="relative w-20 h-20 rounded-2xl overflow-hidden bg-elevated border-2 border-default cursor-pointer group shrink-0"
                       :class="{ 'opacity-60': iconUploading }"
                       @click="iconInputRef?.click()"
                     >
@@ -578,7 +578,7 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                       >
                       <div
                         v-else
-                        class="w-full h-full flex items-center justify-center text-2xl font-bold text-dark-400 select-none"
+                        class="w-full h-full flex items-center justify-center text-2xl font-bold text-muted select-none"
                       >
                         {{ workspaceStore.currentWorkspace?.name?.charAt(0)?.toUpperCase() }}
                       </div>
@@ -625,7 +625,7 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                         </svg>
                       </div>
                     </div>
-                    <div class="text-xs text-dark-400 leading-relaxed">
+                    <div class="text-xs text-muted leading-relaxed">
                       <p>Нажмите на иконку чтобы загрузить изображение</p>
                       <p class="mt-1">
                         JPG, PNG, GIF · до 10 МБ
@@ -642,7 +642,7 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-dark-300 mb-1.5">Название</label>
+                  <label class="block text-sm font-medium text-tertiary mb-1.5">Название</label>
                   <Input
                     v-model="name"
                     placeholder="Название воркспейса"
@@ -651,15 +651,15 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                 </div>
 
                 <div>
-                  <label class="block text-sm font-medium text-dark-300 mb-1.5">Описание</label>
+                  <label class="block text-sm font-medium text-tertiary mb-1.5">Описание</label>
                   <textarea
                     v-model="description"
                     rows="3"
                     maxlength="500"
                     placeholder="Краткое описание воркспейса..."
-                    class="w-full px-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-dark-100 placeholder-dark-500 focus:border-atlas-500 focus:outline-none resize-none text-sm"
+                    class="w-full px-3 py-2 bg-surface border border-default rounded-lg text-primary placeholder-subtle focus:border-accent focus:outline-none resize-none text-sm"
                   />
-                  <p class="text-xs text-dark-500 mt-1 text-right">
+                  <p class="text-xs text-subtle mt-1 text-right">
                     {{ description.length }}/500
                   </p>
                 </div>
@@ -691,17 +691,17 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
 
               <div
                 v-if="currentUserRole === 'owner'"
-                class="mt-8 pt-6 border-t border-dark-700"
+                class="mt-8 pt-6 border-t border-default"
               >
                 <h3 class="text-sm font-semibold text-red-400 mb-3">
                   Опасная зона
                 </h3>
                 <div class="p-4 border border-red-500/20 rounded-lg flex items-center justify-between gap-4">
                   <div>
-                    <p class="text-sm font-medium text-white">
+                    <p class="text-sm font-medium text-primary">
                       Удалить воркспейс
                     </p>
-                    <p class="text-xs text-dark-400 mt-0.5">
+                    <p class="text-xs text-muted mt-0.5">
                       Все каналы и сообщения будут удалены навсегда
                     </p>
                   </div>
@@ -721,12 +721,12 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
               class="flex-1 flex overflow-hidden"
             >
               <!-- Role list -->
-              <div class="w-48 border-r border-dark-700 flex flex-col bg-dark-900/50 shrink-0">
-                <div class="p-3 border-b border-dark-700 flex items-center justify-between">
-                  <span class="text-xs font-semibold text-dark-400 uppercase">Роли</span>
+              <div class="w-48 border-r border-default flex flex-col bg-surface/50 shrink-0">
+                <div class="p-3 border-b border-default flex items-center justify-between">
+                  <span class="text-xs font-semibold text-muted uppercase">Роли</span>
                   <button
                     v-if="canManageMembers"
-                    class="p-1 text-dark-400 hover:text-white transition-colors"
+                    class="p-1 text-muted hover:text-primary transition-colors"
                     title="Создать роль"
                     @click="showCreateForm = true; selectedRole = null"
                   >
@@ -748,7 +748,7 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
 
                 <div
                   v-if="rolesLoading"
-                  class="p-3 text-xs text-dark-500"
+                  class="p-3 text-xs text-subtle"
                 >
                   Загрузка...
                 </div>
@@ -761,8 +761,8 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                     :key="role.id"
                     class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors text-left"
                     :class="selectedRole?.id === role.id
-                      ? 'bg-dark-700 text-white'
-                      : 'text-dark-300 hover:bg-dark-800'"
+                      ? 'bg-overlay text-primary'
+                      : 'text-tertiary hover:bg-elevated'"
                     @click="selectRole(role)"
                   >
                     <!-- Color dot -->
@@ -773,7 +773,7 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                     <span class="truncate">{{ role.name }}</span>
                     <span
                       v-if="role.is_system"
-                      class="ml-auto text-dark-600 text-xs"
+                      class="ml-auto text-faint text-xs"
                     >🔒</span>
                   </button>
                 </div>
@@ -786,11 +786,11 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                   v-if="showCreateForm"
                   class="space-y-4"
                 >
-                  <h3 class="text-base font-semibold text-white">
+                  <h3 class="text-base font-semibold text-primary">
                     Новая роль
                   </h3>
                   <div>
-                    <label class="block text-sm font-medium text-dark-300 mb-1.5">Название роли</label>
+                    <label class="block text-sm font-medium text-tertiary mb-1.5">Название роли</label>
                     <Input
                       v-model="newRoleName"
                       placeholder="Например: Модератор"
@@ -798,14 +798,14 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                     />
                   </div>
                   <div>
-                    <label class="block text-sm font-medium text-dark-300 mb-1.5">Цвет</label>
+                    <label class="block text-sm font-medium text-tertiary mb-1.5">Цвет</label>
                     <div class="flex items-center gap-3">
                       <input
                         v-model="newRoleColor"
                         type="color"
-                        class="w-10 h-10 rounded cursor-pointer border border-dark-700 bg-transparent"
+                        class="w-10 h-10 rounded cursor-pointer border border-default bg-transparent"
                       >
-                      <span class="text-sm text-dark-300">{{ newRoleColor }}</span>
+                      <span class="text-sm text-tertiary">{{ newRoleColor }}</span>
                     </div>
                   </div>
                   <div
@@ -825,7 +825,7 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                       Создать
                     </Button>
                     <button
-                      class="px-3 py-1.5 text-sm text-dark-400 hover:text-white transition-colors"
+                      class="px-3 py-1.5 text-sm text-muted hover:text-primary transition-colors"
                       @click="showCreateForm = false"
                     >
                       Отмена
@@ -844,12 +844,12 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                       class="w-4 h-4 rounded-full shrink-0"
                       :style="{ backgroundColor: selectedRole.color }"
                     />
-                    <h3 class="text-base font-semibold text-white">
+                    <h3 class="text-base font-semibold text-primary">
                       {{ selectedRole.name }}
                     </h3>
                     <span
                       v-if="selectedRole.is_system"
-                      class="text-xs px-2 py-0.5 bg-dark-800 text-dark-400 rounded"
+                      class="text-xs px-2 py-0.5 bg-elevated text-muted rounded"
                     >Системная</span>
                   </div>
 
@@ -857,7 +857,7 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                   <template v-if="!selectedRole.is_system && canManageMembers">
                     <div class="grid grid-cols-2 gap-4">
                       <div>
-                        <label class="block text-sm font-medium text-dark-300 mb-1.5">Название</label>
+                        <label class="block text-sm font-medium text-tertiary mb-1.5">Название</label>
                         <Input
                           v-model="editName"
                           placeholder="Название роли"
@@ -865,14 +865,14 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                         />
                       </div>
                       <div>
-                        <label class="block text-sm font-medium text-dark-300 mb-1.5">Цвет</label>
+                        <label class="block text-sm font-medium text-tertiary mb-1.5">Цвет</label>
                         <div class="flex items-center gap-2">
                           <input
                             v-model="editColor"
                             type="color"
-                            class="w-10 h-10 rounded cursor-pointer border border-dark-700 bg-transparent"
+                            class="w-10 h-10 rounded cursor-pointer border border-default bg-transparent"
                           >
-                          <span class="text-sm text-dark-400">{{ editColor }}</span>
+                          <span class="text-sm text-muted">{{ editColor }}</span>
                         </div>
                       </div>
                     </div>
@@ -880,7 +880,7 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
 
                   <!-- Permissions -->
                   <div>
-                    <p class="text-xs font-semibold text-dark-400 uppercase mb-3">
+                    <p class="text-xs font-semibold text-muted uppercase mb-3">
                       Права доступа
                     </p>
                     <div class="space-y-2">
@@ -888,24 +888,24 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                         v-for="perm in permissionLabels"
                         :key="perm.key"
                         class="flex items-start gap-3 p-3 rounded-lg"
-                        :class="editPerms[perm.key] ? 'bg-atlas-600/10 border border-atlas-600/20' : 'bg-dark-900 border border-dark-800'"
+                        :class="editPerms[perm.key] ? 'bg-accent-dim border border-accent-dim' : 'bg-surface border border-subtle'"
                       >
                         <div class="flex-1 min-w-0">
-                          <p class="text-sm font-medium text-white">
+                          <p class="text-sm font-medium text-primary">
                             {{ perm.label }}
                           </p>
-                          <p class="text-xs text-dark-400 mt-0.5">
+                          <p class="text-xs text-muted mt-0.5">
                             {{ perm.description }}
                           </p>
                         </div>
                         <!-- owner/admin всегда locked -->
                         <template v-if="selectedRole.name === 'owner' || selectedRole.name === 'admin'">
-                          <span class="text-xs text-atlas-400 mt-0.5">Всегда ✓</span>
+                          <span class="text-xs text-accent mt-0.5">Всегда ✓</span>
                         </template>
                         <template v-else>
                           <button
                             class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 mt-0.5"
-                            :class="editPerms[perm.key] ? 'bg-atlas-600' : 'bg-dark-700'"
+                            :class="editPerms[perm.key] ? 'bg-accent' : 'bg-overlay'"
                             :disabled="!canManageMembers"
                             @click="editPerms[perm.key] = !editPerms[perm.key]"
                           >
@@ -961,7 +961,7 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
 
                 <div
                   v-else
-                  class="flex items-center justify-center h-full text-dark-500 text-sm"
+                  class="flex items-center justify-center h-full text-subtle text-sm"
                 >
                   Выберите роль из списка
                 </div>
@@ -974,9 +974,9 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
               class="flex-1 overflow-y-auto p-6 space-y-4"
             >
               <div class="flex items-center justify-between">
-                <h2 class="text-lg font-semibold text-white">
+                <h2 class="text-lg font-semibold text-primary">
                   Участники
-                  <span class="ml-2 text-sm font-normal text-dark-400">{{ members.length }}</span>
+                  <span class="ml-2 text-sm font-normal text-muted">{{ members.length }}</span>
                 </h2>
               </div>
 
@@ -994,10 +994,10 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                   v-for="member in members"
                   :key="member.user_id"
                   class="flex items-center gap-3 px-3 py-2.5 rounded-lg group"
-                  :class="isActionsVisible(member.user_id) ? 'bg-dark-800' : 'hover:bg-dark-800'"
+                  :class="isActionsVisible(member.user_id) ? 'bg-elevated' : 'hover:bg-elevated'"
                 >
                   <!-- Avatar -->
-                  <div class="w-9 h-9 rounded-full bg-atlas-600 flex items-center justify-center text-white text-sm font-semibold shrink-0">
+                  <div class="w-9 h-9 rounded-full bg-accent flex items-center justify-center text-white text-sm font-semibold shrink-0">
                     <img
                       v-if="member.avatar_url"
                       :src="member.avatar_url"
@@ -1009,16 +1009,16 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
 
                   <!-- Name -->
                   <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-white truncate">
+                    <p class="text-sm font-medium text-primary truncate">
                       {{ member.nickname || member.display_name }}
                       <span
                         v-if="member.nickname"
-                        class="text-dark-400 font-normal text-xs ml-1"
+                        class="text-muted font-normal text-xs ml-1"
                       >({{ member.display_name }})</span>
                     </p>
                     <div class="flex items-center gap-1.5 flex-wrap mt-0.5">
                       <!-- Системная роль -->
-                      <span class="text-xs text-dark-400">{{ roleLabels[member.role] ?? member.role }}</span>
+                      <span class="text-xs text-muted">{{ roleLabels[member.role] ?? member.role }}</span>
                       <!-- Кастомные роли -->
                       <span
                         v-for="r in (memberRoles[member.user_id] ?? [])"
@@ -1054,8 +1054,8 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                       <button
                         class="flex items-center gap-1 px-2 py-1 rounded text-xs border transition-colors"
                         :class="rolePopupUserId === member.user_id
-                          ? 'border-atlas-500 text-atlas-300 bg-atlas-600/10'
-                          : 'border-dark-600 text-dark-300 hover:border-dark-400 hover:text-dark-100'"
+                          ? 'border-accent text-accent-strong bg-accent-dim'
+                          : 'border-strong text-tertiary hover:border-strong hover:text-primary'"
                         @click.stop="toggleRolePopup(member.user_id)"
                       >
                         <svg
@@ -1077,16 +1077,16 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                       <!-- Dropdown с ролями -->
                       <div
                         v-if="rolePopupUserId === member.user_id"
-                        class="absolute right-0 bottom-full mb-1 w-52 bg-dark-800 border border-dark-600 rounded-lg shadow-2xl py-1 z-50"
+                        class="absolute right-0 bottom-full mb-1 w-52 bg-elevated border border-strong rounded-lg shadow-2xl py-1 z-50"
                         @click.stop
                       >
-                        <p class="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-dark-400">
+                        <p class="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
                           Роли
                         </p>
                         <button
                           v-for="role in customRoles"
                           :key="role.id"
-                          class="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-dark-700 transition-colors"
+                          class="w-full flex items-center gap-2.5 px-3 py-1.5 hover:bg-overlay transition-colors"
                           @click="toggleMemberRole(member, role.id)"
                         >
                           <span
@@ -1115,7 +1115,7 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                             class="w-2.5 h-2.5 rounded-full shrink-0"
                             :style="{ backgroundColor: role.color }"
                           />
-                          <span class="text-sm text-dark-200 truncate">{{ role.name }}</span>
+                          <span class="text-sm text-secondary truncate">{{ role.name }}</span>
                         </button>
                       </div>
                     </div>
@@ -1134,7 +1134,7 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
 
                     <button
                       :disabled="memberActionLoading === member.user_id"
-                      class="p-1 text-dark-400 hover:text-red-400 transition-colors"
+                      class="p-1 text-muted hover:text-red-400 transition-colors"
                       title="Исключить"
                       @click="kickMember(member)"
                     >
@@ -1156,7 +1156,7 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
 
                   <span
                     v-else-if="member.user_id === authStore.user?.id"
-                    class="text-xs text-dark-500"
+                    class="text-xs text-subtle"
                   >Вы</span>
                 </div>
               </div>
@@ -1168,21 +1168,21 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
               class="flex-1 overflow-hidden flex"
             >
               <!-- Left: список категорий -->
-              <div class="w-52 border-r border-dark-700 flex flex-col bg-dark-900/50 shrink-0">
-                <div class="p-3 border-b border-dark-700">
-                  <span class="text-xs font-semibold text-dark-400 uppercase">Категории</span>
+              <div class="w-52 border-r border-default flex flex-col bg-surface/50 shrink-0">
+                <div class="p-3 border-b border-default">
+                  <span class="text-xs font-semibold text-muted uppercase">Категории</span>
                 </div>
                 <div class="flex-1 overflow-y-auto p-2 space-y-0.5">
                   <button
                     v-for="cat in categories"
                     :key="cat.id"
                     class="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors text-left"
-                    :class="selectedCategoryId === cat.id ? 'bg-dark-700 text-white' : 'text-dark-300 hover:bg-dark-800'"
+                    :class="selectedCategoryId === cat.id ? 'bg-overlay text-primary' : 'text-tertiary hover:bg-elevated'"
                     @click="selectCategory(cat)"
                   >
                     <svg
                       v-if="cat.is_private"
-                      class="w-3.5 h-3.5 shrink-0 text-dark-400"
+                      class="w-3.5 h-3.5 shrink-0 text-muted"
                       fill="currentColor"
                       viewBox="0 0 20 20"
                     >
@@ -1196,21 +1196,21 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                   </button>
                   <p
                     v-if="categories.length === 0"
-                    class="text-xs text-dark-500 text-center py-3"
+                    class="text-xs text-subtle text-center py-3"
                   >
                     Нет категорий
                   </p>
                 </div>
                 <!-- Создать категорию -->
-                <div class="p-3 border-t border-dark-700 space-y-2">
+                <div class="p-3 border-t border-default space-y-2">
                   <input
                     v-model="newCategoryName"
-                    class="w-full px-2 py-1.5 bg-dark-800 border border-dark-700 rounded text-sm text-dark-100 placeholder-dark-500 focus:border-atlas-500 focus:outline-none"
+                    class="w-full px-2 py-1.5 bg-elevated border border-default rounded text-sm text-primary placeholder-subtle focus:border-accent focus:outline-none"
                     placeholder="Новая категория..."
                     @keyup.enter="createCategory"
                   >
                   <div class="flex items-center justify-between">
-                    <label class="flex items-center gap-1.5 cursor-pointer text-xs text-dark-400">
+                    <label class="flex items-center gap-1.5 cursor-pointer text-xs text-muted">
                       <input
                         v-model="newCategoryPrivate"
                         type="checkbox"
@@ -1233,7 +1233,7 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
               <div class="flex-1 overflow-y-auto">
                 <div
                   v-if="!selectedCategory"
-                  class="flex items-center justify-center h-full text-dark-500 text-sm"
+                  class="flex items-center justify-center h-full text-subtle text-sm"
                 >
                   Выберите категорию для настройки
                 </div>
@@ -1244,19 +1244,19 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                 >
                   <div class="flex items-start justify-between gap-4">
                     <div class="flex-1 space-y-3">
-                      <h3 class="text-base font-semibold text-white">
+                      <h3 class="text-base font-semibold text-primary">
                         {{ selectedCategory.name }}
                       </h3>
                       <!-- Переименование -->
                       <div class="flex gap-2">
                         <input
                           v-model="editingCategoryName"
-                          class="flex-1 px-3 py-1.5 bg-dark-900 border border-dark-700 rounded-lg text-sm text-dark-100 placeholder-dark-500 focus:border-atlas-500 focus:outline-none"
+                          class="flex-1 px-3 py-1.5 bg-surface border border-default rounded-lg text-sm text-primary placeholder-subtle focus:border-accent focus:outline-none"
                           placeholder="Название категории"
                           @keyup.enter="saveCategoryName"
                         >
                         <button
-                          class="px-3 py-1.5 text-sm bg-atlas-600 hover:bg-atlas-500 text-white rounded-lg transition-colors"
+                          class="px-3 py-1.5 text-sm bg-accent hover:bg-accent-light text-white rounded-lg transition-colors"
                           :disabled="categorySaving"
                           @click="saveCategoryName"
                         >
@@ -1265,7 +1265,7 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                       </div>
                     </div>
                     <button
-                      class="p-1.5 text-dark-400 hover:text-red-400 transition-colors mt-0.5 shrink-0"
+                      class="p-1.5 text-muted hover:text-red-400 transition-colors mt-0.5 shrink-0"
                       title="Удалить категорию"
                       @click="deleteCategory(selectedCategory)"
                     >
@@ -1288,12 +1288,12 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                   <!-- Приватность категории -->
                   <div
                     class="flex items-center justify-between p-3 rounded-lg cursor-pointer select-none"
-                    :class="selectedCategory.is_private ? 'bg-atlas-600/10 border border-atlas-600/30' : 'bg-dark-800 border border-dark-700'"
+                    :class="selectedCategory.is_private ? 'bg-accent-dim border border-accent-dim' : 'bg-elevated border border-default'"
                     @click="toggleCategoryPrivacy(selectedCategory)"
                   >
                     <div class="flex items-center gap-2">
                       <svg
-                        class="w-4 h-4 text-dark-400 shrink-0"
+                        class="w-4 h-4 text-muted shrink-0"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -1306,17 +1306,17 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                         />
                       </svg>
                       <div>
-                        <p class="text-sm font-medium text-dark-100">
+                        <p class="text-sm font-medium text-primary">
                           Приватная категория
                         </p>
-                        <p class="text-xs text-dark-500">
+                        <p class="text-xs text-subtle">
                           Только выбранные роли и участники
                         </p>
                       </div>
                     </div>
                     <div
                       class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0"
-                      :class="selectedCategory.is_private ? 'bg-atlas-600' : 'bg-dark-600'"
+                      :class="selectedCategory.is_private ? 'bg-accent' : 'bg-muted-fill'"
                     >
                       <span
                         class="inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform"
@@ -1331,17 +1331,17 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                     class="space-y-4"
                   >
                     <div class="flex items-center justify-between">
-                      <h4 class="text-sm font-semibold text-dark-200">
+                      <h4 class="text-sm font-semibold text-secondary">
                         Права доступа
                       </h4>
-                      <p class="text-xs text-dark-500">
+                      <p class="text-xs text-subtle">
                         Права применяются ко всем каналам внутри
                       </p>
                     </div>
 
                     <div
                       v-if="categoryPermsLoading"
-                      class="text-xs text-dark-500 py-2"
+                      class="text-xs text-subtle py-2"
                     >
                       Загрузка...
                     </div>
@@ -1352,14 +1352,14 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                     >
                       <!-- Роли -->
                       <div>
-                        <p class="text-xs font-semibold text-dark-400 uppercase mb-2">
+                        <p class="text-xs font-semibold text-muted uppercase mb-2">
                           Роли
                         </p>
                         <div class="space-y-1">
                           <label
                             v-for="role in roles.filter(r => !r.is_system)"
                             :key="role.id"
-                            class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-dark-800 cursor-pointer"
+                            class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-elevated cursor-pointer"
                           >
                             <span
                               class="w-3 h-3 rounded-sm border-2 flex items-center justify-center shrink-0 transition-colors"
@@ -1388,21 +1388,21 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                               class="w-2.5 h-2.5 rounded-full shrink-0"
                               :style="{ backgroundColor: role.color }"
                             />
-                            <span class="text-sm text-dark-200">{{ role.name }}</span>
+                            <span class="text-sm text-secondary">{{ role.name }}</span>
                           </label>
                         </div>
                       </div>
 
                       <!-- Участники -->
                       <div>
-                        <p class="text-xs font-semibold text-dark-400 uppercase mb-2">
+                        <p class="text-xs font-semibold text-muted uppercase mb-2">
                           Участники
                         </p>
                         <div class="space-y-1">
                           <label
                             v-for="member in members.filter(m => m.role !== 'owner' && m.role !== 'admin')"
                             :key="member.user_id"
-                            class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-dark-800 cursor-pointer"
+                            class="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-elevated cursor-pointer"
                           >
                             <span
                               class="w-3 h-3 rounded-sm border-2 flex items-center justify-center shrink-0 transition-colors"
@@ -1427,7 +1427,7 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                                 />
                               </svg>
                             </span>
-                            <div class="w-6 h-6 rounded-full bg-atlas-600 flex items-center justify-center text-[10px] text-white font-semibold shrink-0">
+                            <div class="w-6 h-6 rounded-full bg-accent flex items-center justify-center text-[10px] text-white font-semibold shrink-0">
                               <img
                                 v-if="member.avatar_url"
                                 :src="member.avatar_url"
@@ -1436,7 +1436,7 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                               >
                               <span v-else>{{ getInitials(member.display_name || '?') }}</span>
                             </div>
-                            <span class="text-sm text-dark-200 truncate">{{ member.nickname || member.display_name }}</span>
+                            <span class="text-sm text-secondary truncate">{{ member.nickname || member.display_name }}</span>
                           </label>
                         </div>
                       </div>
@@ -1457,15 +1457,15 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                   </div>
 
                   <!-- Каналы в категории -->
-                  <div class="pt-4 border-t border-dark-700">
-                    <p class="text-xs font-semibold text-dark-400 uppercase mb-2">
+                  <div class="pt-4 border-t border-default">
+                    <p class="text-xs font-semibold text-muted uppercase mb-2">
                       Каналов в категории: {{ channelsStore.channels.filter(ch => ch.category_id === selectedCategoryId).length }}
                     </p>
                     <div class="space-y-0.5">
                       <div
                         v-for="ch in channelsStore.channels.filter(c => c.category_id === selectedCategoryId)"
                         :key="ch.id"
-                        class="flex items-center gap-2 px-2 py-1 text-sm text-dark-400"
+                        class="flex items-center gap-2 px-2 py-1 text-sm text-muted"
                       >
                         <svg
                           class="w-3.5 h-3.5 shrink-0"
@@ -1484,7 +1484,7 @@ async function toggleMemberRole(member: WorkspaceMember, roleId: string) {
                       </div>
                       <p
                         v-if="channelsStore.channels.filter(c => c.category_id === selectedCategoryId).length === 0"
-                        class="text-xs text-dark-600 px-2"
+                        class="text-xs text-faint px-2"
                       >
                         Нет каналов
                       </p>

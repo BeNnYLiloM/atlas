@@ -48,6 +48,9 @@ func Error(c *gin.Context, err error) {
 	case errors.Is(err, service.ErrInvalidCredentials):
 		status = http.StatusUnauthorized
 		message = "invalid credentials"
+	case errors.Is(err, service.ErrInvalidProfile):
+		status = http.StatusBadRequest
+		message = "invalid profile data"
 	case errors.Is(err, service.ErrUnauthorized):
 		status = http.StatusUnauthorized
 		message = "unauthorized"

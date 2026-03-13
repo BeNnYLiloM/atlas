@@ -16,7 +16,8 @@ const messagesStore = useMessagesStore()
 const uiStore = useUIStore()
 
 const canWrite = ref(true)
-const messageListRef = ref<{ scrollToBottom: () => void } | null>(null)
+const highlightMessageId = ref<string | null>(null)
+const messageListRef = ref<{ scrollToBottom: () => void; scrollToMessage: (id: string) => void } | null>(null)
 
 watch(
   () => route.params.channelId,
@@ -26,18 +27,43 @@ watch(
 
       const messages = messagesStore.getMessages(channelId)
       const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : undefined
-
       channelsStore.setCurrentChannel(channelId, lastMessageId)
 
-      // Скроллим вниз после загрузки сообщений
       await nextTick()
-      messageListRef.value?.scrollToBottom()
+      await nextTick()
 
-      // Проверяем права на запись
+      const targetMessageId = route.query.highlight as string | undefined
+      if (targetMessageId) {
+        highlightMessageId.value = targetMessageId
+        messageListRef.value?.scrollToMessage(targetMessageId)
+        setTimeout(() => { highlightMessageId.value = null }, 2500)
+      } else {
+        highlightMessageId.value = null
+        messageListRef.value?.scrollToBottom()
+      }
+
       canWrite.value = await channelsApi.checkCanWrite(channelId).catch(() => true)
+    } else {
+      channelsStore.setCurrentChannel('')
     }
   },
   { immediate: true }
+)
+
+// Срабатывает когда канал тот же, но изменился query.highlight (поиск в текущем канале)
+watch(
+  () => route.query.highlight,
+  async (messageId, oldMessageId) => {
+    if (!messageId || messageId === oldMessageId) return
+    if (typeof messageId !== 'string') return
+
+    await nextTick()
+    await nextTick()
+
+    highlightMessageId.value = messageId
+    messageListRef.value?.scrollToMessage(messageId)
+    setTimeout(() => { highlightMessageId.value = null }, 2500)
+  }
 )
 </script>
 
@@ -52,6 +78,7 @@ watch(
         <MessageList
           ref="messageListRef"
           :channel-id="channelsStore.currentChannel.id"
+          :highlight-message-id="highlightMessageId"
           class="flex-1 min-h-0"
         />
 
@@ -66,7 +93,7 @@ watch(
         />
         <div
           v-else
-          class="px-4 py-3 mx-4 mb-4 bg-dark-800 rounded-lg text-sm text-dark-400 text-center border border-dark-700"
+          class="px-4 py-3 mx-4 mb-4 bg-elevated rounded-lg text-sm text-muted text-center border border-default"
         >
           У вас нет прав для отправки сообщений в этот канал
         </div>
@@ -78,9 +105,9 @@ watch(
         class="flex-1 flex items-center justify-center"
       >
         <div class="text-center">
-          <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-dark-800 flex items-center justify-center">
+          <div class="w-20 h-20 mx-auto mb-4 rounded-2xl bg-elevated flex items-center justify-center">
             <svg
-              class="w-10 h-10 text-dark-500"
+              class="w-10 h-10 text-subtle"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -93,10 +120,10 @@ watch(
               />
             </svg>
           </div>
-          <h3 class="text-lg font-semibold text-dark-200 mb-1">
+          <h3 class="text-lg font-semibold text-secondary mb-1">
             Выберите канал
           </h3>
-          <p class="text-dark-500 text-sm">
+          <p class="text-subtle text-sm">
             Выберите канал из списка слева для начала общения
           </p>
         </div>

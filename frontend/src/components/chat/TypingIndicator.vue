@@ -37,7 +37,7 @@ const typingText = computed(() => {
 <template>
   <div
     v-if="typingUserIds.length > 0"
-    class="px-4 py-1 flex items-center gap-2 text-xs text-dark-400 min-h-[24px]"
+    class="px-4 py-1 flex items-center gap-2 text-xs text-muted min-h-[24px]"
   >
     <span class="flex gap-0.5 items-center">
       <span

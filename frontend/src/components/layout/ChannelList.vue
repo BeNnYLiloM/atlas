@@ -146,7 +146,7 @@ function getMentionCount(channelId: string): number {
         <!-- Category header -->
         <div class="px-2 mb-1 flex items-center justify-between group/header">
           <button
-            class="flex items-center gap-1 text-xs font-semibold text-dark-500 uppercase tracking-wider hover:text-dark-300 transition-colors min-w-0"
+            class="flex items-center gap-1 text-xs font-semibold text-subtle uppercase tracking-wider hover:text-tertiary transition-colors min-w-0"
             @click="group.id ? toggleCategory(group.id) : undefined"
           >
             <svg
@@ -164,7 +164,7 @@ function getMentionCount(channelId: string): number {
             </svg>
             <svg
               v-if="group.isPrivate"
-              class="w-3 h-3 shrink-0 text-dark-500"
+              class="w-3 h-3 shrink-0 text-subtle"
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -178,7 +178,7 @@ function getMentionCount(channelId: string): number {
           </button>
           <button
             v-if="isAdmin"
-            class="opacity-0 group-hover/header:opacity-100 w-4 h-4 flex items-center justify-center text-dark-500 hover:text-white transition-all shrink-0"
+            class="opacity-0 group-hover/header:opacity-100 w-4 h-4 flex items-center justify-center text-subtle hover:text-primary transition-all shrink-0"
             title="Создать канал"
             @click.stop="emit('createChannel')"
           >
@@ -206,12 +206,8 @@ function getMentionCount(channelId: string): number {
           <button
             v-for="channel in group.channels"
             :key="channel.id"
-            class="w-full px-2 py-1.5 flex items-center gap-2 rounded-lg transition-colors text-left"
-            :class="[
-              isActive(channel.id)
-                ? 'bg-dark-700 text-white'
-                : 'text-dark-400 hover:text-dark-100 hover:bg-dark-800'
-            ]"
+            class="nav-item"
+            :class="{ active: isActive(channel.id) }"
             @click="selectChannel(channel.id)"
             @contextmenu="openContextMenu($event, channel.id)"
           >
@@ -239,7 +235,7 @@ function getMentionCount(channelId: string): number {
             <div class="ml-auto flex items-center gap-1 shrink-0">
               <template v-if="channelsStore.getNotificationLevel(channel.id) === 'nothing'">
                 <svg
-                  class="w-3.5 h-3.5 text-dark-500"
+                  class="w-3.5 h-3.5 text-subtle"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -263,16 +259,16 @@ function getMentionCount(channelId: string): number {
               <template v-else-if="channelsStore.getNotificationLevel(channel.id) === 'mentions'">
                 <span
                   v-if="getMentionCount(channel.id) > 0"
-                  class="px-1.5 py-0.5 text-xs font-semibold bg-atlas-500 text-white rounded-full min-w-[20px] text-center"
+                  class="px-1.5 py-0.5 text-xs font-semibold bg-accent-light text-white rounded-full min-w-[20px] text-center"
                 >
                   {{ getMentionCount(channel.id) > 99 ? '99+' : getMentionCount(channel.id) }}
                 </span>
                 <span
                   v-else-if="getUnreadCount(channel.id) > 0"
-                  class="w-2 h-2 rounded-full bg-atlas-500 shrink-0"
+                  class="w-2 h-2 rounded-full bg-accent-light shrink-0"
                 />
                 <svg
-                  class="w-3.5 h-3.5 text-dark-500"
+                  class="w-3.5 h-3.5 text-subtle"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -286,13 +282,13 @@ function getMentionCount(channelId: string): number {
               <template v-else>
                 <span
                   v-if="getUnreadCount(channel.id) > 0"
-                  class="px-1.5 py-0.5 text-xs font-semibold bg-atlas-500 text-white rounded-full min-w-[20px] text-center"
+                  class="px-1.5 py-0.5 text-xs font-semibold bg-accent-light text-white rounded-full min-w-[20px] text-center"
                 >
                   {{ getUnreadCount(channel.id) > 99 ? '99+' : getUnreadCount(channel.id) }}
                 </span>
                 <svg
                   v-else-if="channel.is_private"
-                  class="w-3.5 h-3.5 text-dark-500"
+                  class="w-3.5 h-3.5 text-subtle"
                   fill="currentColor"
                   viewBox="0 0 20 20"
                 >
@@ -317,7 +313,7 @@ function getMentionCount(channelId: string): number {
       <div v-if="group.channels.length > 0 || isAdmin">
         <div class="px-2 mb-1 flex items-center justify-between group/header">
           <button
-            class="flex items-center gap-1 text-xs font-semibold text-dark-500 uppercase tracking-wider hover:text-dark-300 transition-colors min-w-0"
+            class="flex items-center gap-1 text-xs font-semibold text-subtle uppercase tracking-wider hover:text-tertiary transition-colors min-w-0"
             @click="group.id ? toggleCategory(group.id + '_v') : undefined"
           >
             <svg
@@ -337,7 +333,7 @@ function getMentionCount(channelId: string): number {
           </button>
           <button
             v-if="isAdmin"
-            class="opacity-0 group-hover/header:opacity-100 w-4 h-4 flex items-center justify-center text-dark-500 hover:text-white transition-all shrink-0"
+            class="opacity-0 group-hover/header:opacity-100 w-4 h-4 flex items-center justify-center text-subtle hover:text-primary transition-all shrink-0"
             title="Создать канал"
             @click.stop="emit('createChannel')"
           >
@@ -369,7 +365,7 @@ function getMentionCount(channelId: string): number {
               :class="[
                 callsStore.isInChannel(channel.id)
                   ? 'bg-green-900/30 text-green-400'
-                  : 'text-dark-400 hover:text-dark-100 hover:bg-dark-800'
+                  : 'text-muted hover:text-primary hover:bg-elevated'
               ]"
               :disabled="callsStore.loading"
               @click="joinVoiceChannel(channel.id)"
@@ -393,7 +389,7 @@ function getMentionCount(channelId: string): number {
               <!-- Спиннер пока подключаемся -->
               <svg
                 v-if="callsStore.loading && !callsStore.isInCall"
-                class="w-3.5 h-3.5 animate-spin text-atlas-400"
+                class="w-3.5 h-3.5 animate-spin text-accent"
                 fill="none"
                 viewBox="0 0 24 24"
               >
@@ -438,9 +434,9 @@ function getMentionCount(channelId: string): number {
               <div
                 v-for="participant in callsStore.participants"
                 :key="participant"
-                class="flex items-center gap-1.5 px-2 py-0.5 text-xs text-dark-400"
+                class="flex items-center gap-1.5 px-2 py-0.5 text-xs text-muted"
               >
-                <div class="w-5 h-5 rounded-full bg-dark-700 flex items-center justify-center text-[10px] text-dark-300">
+                <div class="w-5 h-5 rounded-full bg-overlay flex items-center justify-center text-[10px] text-tertiary">
                   {{ participant.slice(0, 1).toUpperCase() }}
                 </div>
                 <span class="truncate">{{ participant }}</span>
@@ -481,7 +477,7 @@ function getMentionCount(channelId: string): number {
       class="text-center py-8"
     >
       <svg
-        class="w-12 h-12 mx-auto text-dark-600 mb-3"
+        class="w-12 h-12 mx-auto text-faint mb-3"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -493,10 +489,10 @@ function getMentionCount(channelId: string): number {
           d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
         />
       </svg>
-      <p class="text-dark-500 text-sm">
+      <p class="text-subtle text-sm">
         Нет каналов
       </p>
-      <p class="text-dark-600 text-xs mt-1">
+      <p class="text-faint text-xs mt-1">
         Создайте первый канал
       </p>
     </div>
@@ -507,7 +503,7 @@ function getMentionCount(channelId: string): number {
       class="flex justify-center py-8"
     >
       <svg
-        class="animate-spin w-6 h-6 text-atlas-500"
+        class="animate-spin w-6 h-6 text-accent"
         fill="none"
         viewBox="0 0 24 24"
       >
@@ -559,13 +555,13 @@ function getMentionCount(channelId: string): number {
       class="fixed inset-0 z-[300] flex items-center justify-center bg-black/60"
       @click.self="deleteConfirmChannelId = null"
     >
-      <div class="bg-dark-800 border border-dark-600 rounded-xl shadow-2xl p-6 w-[360px]">
-        <h3 class="text-base font-semibold text-white mb-2">
+      <div class="bg-elevated border border-strong rounded-xl shadow-2xl p-6 w-[360px]">
+        <h3 class="text-base font-semibold text-primary mb-2">
           Удалить канал
         </h3>
-        <p class="text-sm text-dark-300 mb-5">
+        <p class="text-sm text-tertiary mb-5">
           Вы уверены? Канал
-          <span class="font-semibold text-white">#{{ channelsStore.channels.find(c => c.id === deleteConfirmChannelId)?.name }}</span>
+          <span class="font-semibold text-primary">#{{ channelsStore.channels.find(c => c.id === deleteConfirmChannelId)?.name }}</span>
           и все его сообщения будут удалены навсегда.
         </p>
         <div class="flex gap-3">
@@ -577,7 +573,7 @@ function getMentionCount(channelId: string): number {
             {{ deleting ? 'Удаление...' : 'Удалить' }}
           </button>
           <button
-            class="flex-1 px-4 py-2 text-sm font-medium text-dark-300 border border-dark-600 hover:bg-dark-700 rounded-lg transition-colors"
+            class="flex-1 px-4 py-2 text-sm font-medium text-tertiary border border-strong hover:bg-overlay rounded-lg transition-colors"
             @click="deleteConfirmChannelId = null"
           >
             Отмена

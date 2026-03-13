@@ -3,29 +3,31 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/your-org/atlas/backend/internal/domain"
+	"github.com/your-org/atlas/backend/internal/repository"
 )
 
-type SearchResult struct {
-	Message   *domain.Message `json:"message"`
-	Rank      float32         `json:"rank"`
-	Highlight string          `json:"highlight"`
+var nonWordRe = regexp.MustCompile(`[^\p{L}\p{N}]+`)
+
+// buildPrefixTsQuery преобразует произвольный ввод в prefix tsquery:
+// "прив мир" → "прив:* & мир:*"
+func buildPrefixTsQuery(q string) string {
+	normalized := nonWordRe.ReplaceAllString(strings.TrimSpace(q), " ")
+	words := strings.Fields(normalized)
+	if len(words) == 0 {
+		return ""
+	}
+	tokens := make([]string, 0, len(words))
+	for _, w := range words {
+		tokens = append(tokens, w+":*")
+	}
+	return strings.Join(tokens, " & ")
 }
 
-type SearchFilter struct {
-	Query       string
-	WorkspaceID string
-	ChannelID   string
-	UserID      string
-	From        *time.Time
-	To          *time.Time
-	Limit       int
-	Offset      int
-}
 
 type SearchRepository struct {
 	db *pgxpool.Pool
@@ -35,7 +37,9 @@ func NewSearchRepository(db *pgxpool.Pool) *SearchRepository {
 	return &SearchRepository{db: db}
 }
 
-func (r *SearchRepository) Search(ctx context.Context, filter SearchFilter) ([]*SearchResult, int, error) {
+var _ repository.SearchRepository = (*SearchRepository)(nil)
+
+func (r *SearchRepository) Search(ctx context.Context, filter repository.SearchFilter) ([]*repository.SearchResult, int, error) {
 	if filter.Limit == 0 {
 		filter.Limit = 20
 	}
@@ -44,13 +48,22 @@ func (r *SearchRepository) Search(ctx context.Context, filter SearchFilter) ([]*
 	conditions := []string{}
 	argIdx := 1
 
-	// Поисковый запрос (обязательный)
-	args = append(args, filter.Query)
-	tsQuery := fmt.Sprintf("plainto_tsquery('russian', $%d)", argIdx)
-	argIdx++
-
-	conditions = append(conditions,
-		fmt.Sprintf("m.search_vector @@ %s", tsQuery))
+	// Поисковый запрос (обязательный): prefix search + ILIKE fallback
+	prefixQuery := buildPrefixTsQuery(filter.Query)
+	var tsQuery string
+	if prefixQuery != "" {
+		args = append(args, prefixQuery)
+		tsQuery = fmt.Sprintf("to_tsquery('russian', $%d)", argIdx)
+		argIdx++
+		// ILIKE использует GIN trigram-индекс (idx_messages_content_trgm) — не seq scan
+		args = append(args, filter.Query)
+		conditions = append(conditions,
+			fmt.Sprintf("(m.search_vector @@ %s OR m.content ILIKE '%%' || $%d || '%%')", tsQuery, argIdx))
+		argIdx++
+	} else {
+		// Ввод из одних спецсимволов — не ищем
+		return nil, 0, nil
+	}
 
 	// Фильтр по workspace через каналы
 	if filter.WorkspaceID != "" {
@@ -102,19 +115,29 @@ func (r *SearchRepository) Search(ctx context.Context, filter SearchFilter) ([]*
 	}
 
 	args = append(args, filter.Limit, filter.Offset)
+
+	var rankExpr, headlineExpr string
+	if prefixQuery != "" {
+		rankExpr = fmt.Sprintf("ts_rank(m.search_vector, %s)", tsQuery)
+		headlineExpr = fmt.Sprintf("ts_headline('russian', m.content, %s, 'MaxWords=15, MinWords=5')", tsQuery)
+	} else {
+		rankExpr = "0.0::float4"
+		headlineExpr = "m.content"
+	}
+
 	query := fmt.Sprintf(`
 		SELECT 
 			m.id, m.channel_id, m.user_id, m.content, m.parent_id, m.created_at, m.updated_at,
 			u.id, u.display_name, u.avatar_url,
-			ts_rank(m.search_vector, %s) AS rank,
-			ts_headline('russian', m.content, %s, 'MaxWords=15, MinWords=5') AS highlight
+			%s AS rank,
+			%s AS highlight
 		FROM messages m
 		JOIN channels c ON m.channel_id = c.id
 		LEFT JOIN users u ON m.user_id = u.id
 		WHERE %s
 		ORDER BY rank DESC, m.created_at DESC
 		LIMIT $%d OFFSET $%d
-	`, tsQuery, tsQuery, whereClause, argIdx, argIdx+1)
+	`, rankExpr, headlineExpr, whereClause, argIdx, argIdx+1)
 
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
@@ -122,11 +145,11 @@ func (r *SearchRepository) Search(ctx context.Context, filter SearchFilter) ([]*
 	}
 	defer rows.Close()
 
-	var results []*SearchResult
+	var results []*repository.SearchResult
 	for rows.Next() {
 		msg := &domain.Message{}
 		user := &domain.User{}
-		result := &SearchResult{Message: msg}
+		result := &repository.SearchResult{Message: msg}
 
 		if err := rows.Scan(
 			&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Content, &msg.ParentID, &msg.CreatedAt, &msg.UpdatedAt,

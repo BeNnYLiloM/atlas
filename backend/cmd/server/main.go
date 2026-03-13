@@ -56,7 +56,7 @@ func main() {
 	reactionRepo := postgres.NewReactionRepository(db)
 	taskRepo := postgres.NewTaskRepository(db)
 
-	wsHub := ws.NewHub()
+	wsHub := ws.NewHub(userRepo)
 	go wsHub.Run()
 
 	authService := service.NewAuthService(userRepo, authSessionRepo, cfg.JWT)
@@ -96,7 +96,7 @@ func main() {
 	api := router.Group("/api/v1")
 	authMiddleware := middleware.AuthMiddleware(authService)
 
-	authHandler := handler.NewAuthHandler(authService, cfg.JWT)
+	authHandler := handler.NewAuthHandler(authService, fileService, cfg.JWT, wsHub)
 	authHandler.RegisterRoutes(api, authMiddleware)
 
 	channelHandler := handler.NewChannelHandler(channelService, wsHub)

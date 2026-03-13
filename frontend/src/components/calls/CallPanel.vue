@@ -17,7 +17,7 @@ function currentChannelName(): string {
   <!-- Панель активного голосового канала — встраивается в нижнюю часть сайдбара (как в Discord) -->
   <div
     v-if="callsStore.isInCall"
-    class="border-t border-dark-800 bg-dark-950 p-2"
+    class="border-t border-subtle bg-base p-2"
   >
     <!-- Статус подключения -->
     <div class="flex items-center gap-2 px-2 py-1 mb-1">
@@ -26,7 +26,7 @@ function currentChannelName(): string {
         <p class="text-xs font-medium text-green-400 truncate">
           {{ currentChannelName() }}
         </p>
-        <p class="text-xs text-dark-500">
+        <p class="text-xs text-subtle">
           Голос подключён
         </p>
       </div>
@@ -37,7 +37,7 @@ function currentChannelName(): string {
       <!-- Mute -->
       <button
         class="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs transition-colors"
-        :class="callsStore.isMuted ? 'bg-red-600/20 text-red-400' : 'text-dark-400 hover:bg-dark-800 hover:text-dark-100'"
+        :class="callsStore.isMuted ? 'bg-red-600/20 text-red-400' : 'text-muted hover:bg-elevated hover:text-primary'"
         :title="callsStore.isMuted ? 'Включить микрофон' : 'Выключить микрофон'"
         @click="callsStore.toggleMute()"
       >

@@ -13,33 +13,44 @@ type rateLimitBucket struct {
 	resetAt time.Time
 }
 
-type RateLimiter struct {
+type rateLimiter struct {
 	limit   int
 	window  time.Duration
 	mu      sync.Mutex
 	buckets map[string]*rateLimitBucket
 }
 
-func NewRateLimiter(limit int, window time.Duration) gin.HandlerFunc {
-	limiter := &RateLimiter{
+func newRateLimiter(limit int, window time.Duration) *rateLimiter {
+	rl := &rateLimiter{
 		limit:   limit,
 		window:  window,
 		buckets: make(map[string]*rateLimitBucket),
 	}
+	go rl.cleanupLoop()
+	return rl
+}
 
-	return func(c *gin.Context) {
-		key := c.ClientIP() + ":" + c.FullPath()
-		if !limiter.allow(key) {
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
-				"error": "too many requests",
-			})
-			return
-		}
-		c.Next()
+// cleanupLoop периодически удаляет истёкшие buckets чтобы не было утечки памяти.
+func (r *rateLimiter) cleanupLoop() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		r.cleanup()
 	}
 }
 
-func (r *RateLimiter) allow(key string) bool {
+func (r *rateLimiter) cleanup() {
+	now := time.Now().UTC()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for key, bucket := range r.buckets {
+		if now.After(bucket.resetAt) {
+			delete(r.buckets, key)
+		}
+	}
+}
+
+func (r *rateLimiter) allow(key string) bool {
 	now := time.Now().UTC()
 
 	r.mu.Lock()
@@ -60,4 +71,18 @@ func (r *RateLimiter) allow(key string) bool {
 
 	bucket.count++
 	return true
+}
+
+func NewRateLimiter(limit int, window time.Duration) gin.HandlerFunc {
+	rl := newRateLimiter(limit, window)
+	return func(c *gin.Context) {
+		key := c.ClientIP() + ":" + c.FullPath()
+		if !rl.allow(key) {
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+				"error": "too many requests",
+			})
+			return
+		}
+		c.Next()
+	}
 }

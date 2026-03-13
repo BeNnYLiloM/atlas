@@ -12,7 +12,11 @@ type UserRepository interface {
 	Create(ctx context.Context, user *domain.User) error
 	GetByID(ctx context.Context, id string) (*domain.User, error)
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
+	GetStatusByID(ctx context.Context, userID string) (string, error)
 	Update(ctx context.Context, user *domain.User) error
+	UpdatePassword(ctx context.Context, userID, newHash string) error
+	UpdateLastSeen(ctx context.Context, userID string, t time.Time) error
+	DeleteByID(ctx context.Context, userID string) error
 }
 
 // AuthSessionRepository - интерфейс для управления refresh-сессиями.
@@ -21,8 +25,12 @@ type AuthSessionRepository interface {
 	GetByRefreshTokenHash(ctx context.Context, hash string) (*domain.AuthSession, error)
 	Rotate(ctx context.Context, currentSessionID string, nextSession *domain.AuthSession) error
 	RevokeByID(ctx context.Context, sessionID string) error
+	// RevokeByIDForUser отзывает сессию только если она принадлежит указанному пользователю.
+	// Возвращает false если сессия не найдена или принадлежит другому пользователю.
+	RevokeByIDForUser(ctx context.Context, sessionID, userID string) (bool, error)
 	RevokeFamily(ctx context.Context, familyID string) error
 	RevokeAllByUserID(ctx context.Context, userID string) error
+	ListActiveByUserID(ctx context.Context, userID string) ([]*domain.AuthSession, error)
 }
 
 // WorkspaceRepository - интерфейс для работы с воркспейсами
@@ -104,6 +112,32 @@ type CategoryPermissionRepository interface {
 	HasAccess(ctx context.Context, categoryID, userID string, wsRoleIDs []string) (bool, error)
 	// GetVisibleCategoryIDs — ID категорий доступных пользователю
 	GetVisibleCategoryIDs(ctx context.Context, workspaceID, userID string, wsRoleIDs []string) ([]string, error)
+}
+
+// SearchResult — результат поиска, независимый от реализации (Postgres, ES и т.д.)
+type SearchResult struct {
+	Message   *domain.Message `json:"message"`
+	Rank      float32         `json:"rank"`
+	Highlight string          `json:"highlight"`
+}
+
+// SearchFilter — параметры поиска.
+type SearchFilter struct {
+	Query       string
+	WorkspaceID string
+	ChannelID   string
+	UserID      string
+	From        *time.Time
+	To          *time.Time
+	Limit       int
+	Offset      int
+}
+
+// SearchRepository — абстракция поискового бэкенда.
+// Текущая реализация: PostgreSQL FTS + trigram.
+// Будущая: Elasticsearch, Typesense и др. — без изменений в сервисе.
+type SearchRepository interface {
+	Search(ctx context.Context, filter SearchFilter) ([]*SearchResult, int, error)
 }
 
 // MessageRepository - интерфейс для работы с сообщениями

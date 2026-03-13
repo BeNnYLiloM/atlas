@@ -26,12 +26,12 @@ const isAdmin = computed(() => {
 </script>
 
 <template>
-  <header class="h-14 px-4 flex items-center gap-3 border-b border-dark-800 bg-dark-900/50 backdrop-blur-sm">
+  <header class="h-14 px-4 flex items-center gap-3 border-b border-subtle bg-surface/50 backdrop-blur-sm">
     <!-- Channel icon + name + topic -->
     <div class="flex items-center gap-2 min-w-0">
       <svg
         v-if="channel.type === 'text'"
-        class="w-5 h-5 text-dark-400 shrink-0"
+        class="w-5 h-5 text-muted shrink-0"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -45,7 +45,7 @@ const isAdmin = computed(() => {
       </svg>
       <svg
         v-else
-        class="w-5 h-5 text-dark-400 shrink-0"
+        class="w-5 h-5 text-muted shrink-0"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -57,12 +57,12 @@ const isAdmin = computed(() => {
           d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
         />
       </svg>
-      <h1 class="font-semibold text-white shrink-0">
+      <h1 class="font-semibold text-primary shrink-0">
         {{ channel.name }}
       </h1>
       <svg
         v-if="channel.is_private"
-        class="w-4 h-4 text-dark-500 shrink-0"
+        class="w-4 h-4 text-subtle shrink-0"
         fill="currentColor"
         viewBox="0 0 20 20"
       >
@@ -74,8 +74,8 @@ const isAdmin = computed(() => {
       </svg>
       <!-- Topic separator + text -->
       <template v-if="channel.topic">
-        <span class="text-dark-600 shrink-0">|</span>
-        <span class="text-sm text-dark-400 truncate max-w-xs">{{ channel.topic }}</span>
+        <span class="text-faint shrink-0">|</span>
+        <span class="text-sm text-muted truncate max-w-xs">{{ channel.topic }}</span>
       </template>
     </div>
 
@@ -85,7 +85,7 @@ const isAdmin = computed(() => {
     <div class="flex items-center gap-1">
       <template v-if="isAdmin">
         <button
-          class="btn-ghost p-2 rounded-lg text-dark-400 hover:text-dark-100"
+          class="btn-ghost p-2 rounded-lg text-muted hover:text-primary"
           title="Пригласить участника"
           @click="showInviteModal = true"
         >
@@ -105,7 +105,7 @@ const isAdmin = computed(() => {
         </button>
         <button
           class="btn-ghost p-2 rounded-lg transition-colors"
-          :class="showSettings ? 'text-atlas-400' : 'text-dark-400 hover:text-dark-100'"
+          :class="showSettings ? 'text-accent' : 'text-muted hover:text-primary'"
           title="Настройки канала"
           @click="showSettings = true"
         >
@@ -132,7 +132,7 @@ const isAdmin = computed(() => {
       </template>
       <button
         class="btn-ghost p-2 rounded-lg transition-colors"
-        :class="uiStore.memberListVisible ? 'text-atlas-400' : 'text-dark-400 hover:text-dark-100'"
+        :class="uiStore.memberListVisible ? 'text-accent' : 'text-muted hover:text-primary'"
         title="Участники канала"
         @click="uiStore.toggleMemberList()"
       >

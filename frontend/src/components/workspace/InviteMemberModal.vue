@@ -128,17 +128,17 @@ const roles = [
         <!-- Found user -->
         <div
           v-if="foundUser"
-          class="mt-4 p-4 bg-dark-800 rounded-lg space-y-4"
+          class="mt-4 p-4 bg-elevated rounded-lg space-y-4"
         >
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-atlas-600 flex items-center justify-center text-white font-semibold">
+            <div class="w-10 h-10 rounded-full bg-accent flex items-center justify-center text-white font-semibold">
               {{ foundUser.display_name[0].toUpperCase() }}
             </div>
             <div>
-              <p class="font-medium text-white">
+              <p class="font-medium text-primary">
                 {{ foundUser.display_name }}
               </p>
-              <p class="text-sm text-dark-400">
+              <p class="text-sm text-muted">
                 {{ foundUser.email }}
               </p>
             </div>
@@ -146,7 +146,7 @@ const roles = [
 
           <!-- Role select -->
           <div>
-            <label class="block text-sm font-medium text-dark-300 mb-2">Роль</label>
+            <label class="block text-sm font-medium text-tertiary mb-2">Роль</label>
             <Select
               v-model="role"
               :options="roles"

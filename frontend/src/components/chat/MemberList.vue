@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { channelsApi } from '@/api'
 import { useWorkspaceStore, useChannelsStore } from '@/stores'
 import type { ChannelMemberInfo, WorkspaceMember, WorkspaceRole } from '@/types'
+import { Avatar } from '@/components/ui'
 
 const workspaceStore = useWorkspaceStore()
 const channelsStore = useChannelsStore()
@@ -109,18 +110,31 @@ const groups = computed<Group[]>(() => {
   return result
 })
 
-// Разбиваем каждую группу на online/offline
-type SplitGroup = Group & { online: EnrichedMember[]; offline: EnrichedMember[] }
+const PRESENCE_ORDER: Record<string, number> = { online: 0, dnd: 1, away: 2, offline: 3 }
+
+function isActive(presence: string) {
+  return presence === 'online' || presence === 'away' || presence === 'dnd'
+}
+
+
+// Разбиваем каждую группу на активных/офлайн, сортируем по presence внутри
+type SplitGroup = Group & { active: EnrichedMember[]; offline: EnrichedMember[] }
 
 const splitGroups = computed<SplitGroup[]>(() =>
-  groups.value.map(g => ({
-    ...g,
-    online: g.members.filter(m => m.presence === 'online'),
-    offline: g.members.filter(m => m.presence !== 'online'),
-  }))
+  groups.value.map(g => {
+    const sorted = [...g.members].sort((a, b) =>
+      (PRESENCE_ORDER[a.presence] ?? 3) - (PRESENCE_ORDER[b.presence] ?? 3)
+      || a.display_name.localeCompare(b.display_name)
+    )
+    return {
+      ...g,
+      active:  sorted.filter(m => isActive(m.presence)),
+      offline: sorted.filter(m => !isActive(m.presence)),
+    }
+  })
 )
 
-const onlineCount = computed(() => enrichedMembers.value.filter(m => m.presence === 'online').length)
+const onlineCount = computed(() => enrichedMembers.value.filter(m => isActive(m.presence)).length)
 const totalCount = computed(() => enrichedMembers.value.length)
 
 async function loadPrivateMembers(channelId: string) {
@@ -144,17 +158,18 @@ watch(
   { immediate: true }
 )
 
-function getInitials(name: string) {
-  return name.split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase()
+function presenceToAvatarStatus(presence: string): 'online' | 'away' | 'dnd' | 'offline' {
+  if (presence === 'online' || presence === 'away' || presence === 'dnd') return presence
+  return 'offline'
 }
 </script>
 
 <template>
-  <aside class="w-60 shrink-0 flex flex-col bg-dark-900 border-l border-dark-800 overflow-hidden">
+  <aside class="w-60 shrink-0 flex flex-col bg-surface border-l border-subtle overflow-hidden">
     <!-- Header -->
-    <div class="h-14 px-4 flex items-center gap-2 border-b border-dark-800 shrink-0">
-      <span class="text-sm font-semibold text-dark-200">Участники</span>
-      <span class="text-xs text-dark-500 ml-auto">{{ onlineCount }}/{{ totalCount }}</span>
+    <div class="h-14 px-4 flex items-center gap-2 border-b border-subtle shrink-0">
+      <span class="text-sm font-semibold text-secondary">Участники</span>
+      <span class="text-xs text-subtle ml-auto">{{ onlineCount }}/{{ totalCount }}</span>
     </div>
 
     <!-- Spinner -->
@@ -162,7 +177,7 @@ function getInitials(name: string) {
       v-if="loading"
       class="flex-1 flex items-center justify-center"
     >
-      <div class="w-5 h-5 border-2 border-atlas-500 border-t-transparent rounded-full animate-spin" />
+      <div class="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
     </div>
 
     <div
@@ -173,7 +188,7 @@ function getInitials(name: string) {
         v-for="group in splitGroups"
         :key="group.id"
       >
-        <template v-if="group.online.length || group.offline.length">
+        <template v-if="group.active.length || group.offline.length">
           <!-- Group header -->
           <div class="px-3 pt-4 pb-1 flex items-center gap-1.5">
             <span
@@ -184,40 +199,31 @@ function getInitials(name: string) {
             <span
               class="text-xs font-semibold uppercase tracking-wide truncate"
               :style="group.color ? { color: group.color } : {}"
-              :class="!group.color ? 'text-dark-500' : ''"
+              :class="!group.color ? 'text-subtle' : ''"
             >
-              {{ group.label }} — {{ group.online.length + group.offline.length }}
+              {{ group.label }} — {{ group.active.length + group.offline.length }}
             </span>
           </div>
 
-          <!-- Online members -->
+          <!-- Active members (online / away / dnd) -->
           <div
-            v-for="member in group.online"
+            v-for="member in group.active"
             :key="member.user_id"
-            class="flex items-center gap-2.5 px-3 py-1.5 mx-1 rounded-md hover:bg-dark-800 cursor-pointer group transition-colors"
+            class="flex items-center gap-2.5 px-3 py-1.5 mx-1 rounded-md hover:bg-elevated cursor-pointer group transition-colors"
           >
-            <div class="relative shrink-0">
-              <img
-                v-if="member.avatar_url"
-                :src="member.avatar_url"
-                :alt="member.display_name"
-                class="w-8 h-8 rounded-full object-cover"
-              >
-              <div
-                v-else
-                class="w-8 h-8 rounded-full bg-atlas-600 flex items-center justify-center text-xs font-semibold text-white"
-              >
-                {{ getInitials(member.display_name) }}
-              </div>
-              <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-green-500 border-2 border-dark-900" />
-            </div>
+            <Avatar
+              :name="member.display_name"
+              :src="member.avatar_url"
+              size="sm"
+              :status="presenceToAvatarStatus(member.presence)"
+            />
             <div class="min-w-0">
-              <div class="text-sm text-dark-200 truncate group-hover:text-white transition-colors">
+              <div class="text-sm text-secondary truncate group-hover:text-primary transition-colors">
                 {{ member.display_name }}
               </div>
               <div
                 v-if="member.system_role !== 'member'"
-                class="text-xs text-dark-500 truncate"
+                class="text-xs text-subtle truncate"
               >
                 {{ member.system_role === 'owner' ? 'Владелец' : 'Администратор' }}
               </div>
@@ -228,30 +234,21 @@ function getInitials(name: string) {
           <div
             v-for="member in group.offline"
             :key="member.user_id"
-            class="flex items-center gap-2.5 px-3 py-1.5 mx-1 rounded-md hover:bg-dark-800 cursor-pointer group transition-colors"
+            class="flex items-center gap-2.5 px-3 py-1.5 mx-1 rounded-md hover:bg-elevated cursor-pointer group transition-colors opacity-50"
           >
-            <div class="relative shrink-0">
-              <img
-                v-if="member.avatar_url"
-                :src="member.avatar_url"
-                :alt="member.display_name"
-                class="w-8 h-8 rounded-full object-cover opacity-50"
-              >
-              <div
-                v-else
-                class="w-8 h-8 rounded-full bg-dark-700 flex items-center justify-center text-xs font-semibold text-dark-400"
-              >
-                {{ getInitials(member.display_name) }}
-              </div>
-              <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-dark-600 border-2 border-dark-900" />
-            </div>
+            <Avatar
+              :name="member.display_name"
+              :src="member.avatar_url"
+              size="sm"
+              status="offline"
+            />
             <div class="min-w-0">
-              <div class="text-sm text-dark-500 truncate group-hover:text-dark-300 transition-colors">
+              <div class="text-sm text-subtle truncate group-hover:text-tertiary transition-colors">
                 {{ member.display_name }}
               </div>
               <div
                 v-if="member.system_role !== 'member'"
-                class="text-xs text-dark-600 truncate"
+                class="text-xs text-faint truncate"
               >
                 {{ member.system_role === 'owner' ? 'Владелец' : 'Администратор' }}
               </div>
@@ -262,7 +259,7 @@ function getInitials(name: string) {
 
       <div
         v-if="!splitGroups.length"
-        class="px-4 py-8 text-center text-sm text-dark-500"
+        class="px-4 py-8 text-center text-sm text-subtle"
       >
         Нет участников
       </div>

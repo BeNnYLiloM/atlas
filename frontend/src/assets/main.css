@@ -2,37 +2,196 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   ACCENT PALETTES
+   Переключаются через data-accent на <html>.
+   RGB-формат "R G B" — для Tailwind opacity-модификаторов не используется,
+   hex-значения хранятся в отдельных переменных для прямого использования.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root[data-accent="violet"] {
+  --accent-300-hex: #c4b5fd;
+  --accent-400-hex: #a78bfa;
+  --accent-500-hex: #8b5cf6;
+  --accent-600-hex: #7c3aed;
+  --accent-shadow-color: rgba(124, 58, 237, 0.30);
+  --accent-glow:         rgba(139, 92, 246, 0.15);
+}
+
+:root[data-accent="indigo"],
+:root:not([data-accent]) {
+  --accent-300-hex: #a5b4fc;
+  --accent-400-hex: #818cf8;
+  --accent-500-hex: #6366f1;
+  --accent-600-hex: #4f46e5;
+  --accent-shadow-color: rgba(79, 70, 229, 0.30);
+  --accent-glow:         rgba(99, 102, 241, 0.15);
+}
+
+:root[data-accent="blue"] {
+  --accent-300-hex: #93c5fd;
+  --accent-400-hex: #60a5fa;
+  --accent-500-hex: #3b82f6;
+  --accent-600-hex: #2563eb;
+  --accent-shadow-color: rgba(37, 99, 235, 0.30);
+  --accent-glow:         rgba(59, 130, 246, 0.15);
+}
+
+:root[data-accent="teal"] {
+  --accent-300-hex: #5eead4;
+  --accent-400-hex: #2dd4bf;
+  --accent-500-hex: #14b8a6;
+  --accent-600-hex: #0d9488;
+  --accent-shadow-color: rgba(13, 148, 136, 0.30);
+  --accent-glow:         rgba(20, 184, 166, 0.15);
+}
+
+:root[data-accent="green"] {
+  --accent-300-hex: #86efac;
+  --accent-400-hex: #4ade80;
+  --accent-500-hex: #22c55e;
+  --accent-600-hex: #16a34a;
+  --accent-shadow-color: rgba(22, 163, 74, 0.30);
+  --accent-glow:         rgba(34, 197, 94, 0.15);
+}
+
+:root[data-accent="rose"] {
+  --accent-300-hex: #fda4af;
+  --accent-400-hex: #fb7185;
+  --accent-500-hex: #f43f5e;
+  --accent-600-hex: #e11d48;
+  --accent-shadow-color: rgba(225, 29, 72, 0.30);
+  --accent-glow:         rgba(244, 63, 94, 0.15);
+}
+
+:root[data-accent="orange"] {
+  --accent-300-hex: #fdba74;
+  --accent-400-hex: #fb923c;
+  --accent-500-hex: #f97316;
+  --accent-600-hex: #ea580c;
+  --accent-shadow-color: rgba(234, 88, 12, 0.30);
+  --accent-glow:         rgba(249, 115, 22, 0.15);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BASE RESET
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 @layer base {
   html {
     @apply antialiased;
   }
-  
+
   body {
-    @apply bg-dark-950 text-dark-100 font-sans;
-    @apply selection:bg-atlas-500/30 selection:text-white;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    @apply font-sans;
   }
 
-  /* Кастомный скроллбар */
-  ::-webkit-scrollbar {
-    @apply w-2;
+  ::selection {
+    background-color: var(--accent);
+    opacity: 0.3;
+    color: white;
   }
 
-  ::-webkit-scrollbar-track {
-    @apply bg-transparent;
-  }
-
+  ::-webkit-scrollbar       { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
-    @apply bg-dark-700 rounded-full;
-    @apply hover:bg-dark-600;
+    background: var(--scrollbar-thumb);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-hover);
   }
 
-  /* Фокус для доступности */
   *:focus-visible {
-    @apply outline-none ring-2 ring-atlas-500 ring-offset-2 ring-offset-dark-950;
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--accent);
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   SEMANTIC THEME CLASSES
+   Используются в компонентах вместо bg-dark-*, text-dark-*, border-dark-*
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 @layer components {
+  /* ── Backgrounds ─────────────────────────────── */
+  .bg-base       { background-color: var(--bg-base); }
+  .bg-surface    { background-color: var(--bg-surface); }
+  .bg-elevated   { background-color: var(--bg-elevated); }
+  .bg-overlay    { background-color: var(--bg-overlay); }
+  .bg-muted-fill { background-color: var(--bg-muted); }
+
+  /* opacity variants */
+  .bg-base\/80      { background-color: color-mix(in srgb, var(--bg-base) 80%, transparent); }
+  .bg-base\/90      { background-color: color-mix(in srgb, var(--bg-base) 90%, transparent); }
+  .bg-surface\/50   { background-color: color-mix(in srgb, var(--bg-surface) 50%, transparent); }
+  .bg-surface\/60   { background-color: color-mix(in srgb, var(--bg-surface) 60%, transparent); }
+  .bg-elevated\/50  { background-color: color-mix(in srgb, var(--bg-elevated) 50%, transparent); }
+
+  /* ── Text ────────────────────────────────────── */
+  .text-primary   { color: var(--text-primary); }
+  .text-secondary { color: var(--text-secondary); }
+  .text-tertiary  { color: var(--text-tertiary); }
+  .text-muted     { color: var(--text-muted); }
+  .text-subtle    { color: var(--text-subtle); }
+  .text-faint     { color: var(--text-faint); }
+
+  /* ── Borders ─────────────────────────────────── */
+  .border-subtle  { border-color: var(--border-subtle); }
+  .border-default { border-color: var(--border-default); }
+  .border-strong  { border-color: var(--border-strong); }
+
+  /* ── Accent ──────────────────────────────────── */
+  .bg-accent        { background-color: var(--accent); }
+  .bg-accent-light  { background-color: var(--accent-hover); }
+  .bg-accent-dim    { background-color: color-mix(in srgb, var(--accent) 15%, transparent); }
+  .bg-accent-dim-md { background-color: color-mix(in srgb, var(--accent) 25%, transparent); }
+
+  .text-accent        { color: var(--accent); }
+  .text-accent-strong { color: var(--accent-hover); }
+
+  .border-accent     { border-color: var(--accent); }
+  .border-accent-dim { border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+
+  /* ── Hover variants ──────────────────────────── */
+  .hover\:bg-surface:hover  { background-color: var(--bg-surface); }
+  .hover\:bg-elevated:hover { background-color: var(--bg-elevated); }
+  .hover\:bg-overlay:hover  { background-color: var(--bg-overlay); }
+
+  .hover\:text-primary:hover   { color: var(--text-primary); }
+  .hover\:text-secondary:hover { color: var(--text-secondary); }
+  .hover\:text-tertiary:hover  { color: var(--text-tertiary); }
+
+  .hover\:border-default:hover { border-color: var(--border-default); }
+  .hover\:border-strong:hover  { border-color: var(--border-strong); }
+
+  .hover\:bg-accent:hover       { background-color: var(--accent); }
+  .hover\:bg-accent-light:hover { background-color: var(--accent-hover); }
+  .hover\:text-accent:hover     { color: var(--accent); }
+  .hover\:text-accent-strong:hover { color: var(--accent-hover); }
+  .hover\:border-accent:hover   { border-color: var(--accent); }
+
+  /* ── Focus variants ──────────────────────────── */
+  .focus\:border-accent:focus { border-color: var(--accent); }
+
+  .focus-within\:border-accent:focus-within {
+    border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+
+  /* ── Active/selected ─────────────────────────── */
+  .active-item {
+    background-color: var(--bg-overlay);
+    color: var(--text-primary);
+  }
+
+  .active-accent {
+    background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+    color: var(--accent-hover);
+  }
+
+  /* ── Components ──────────────────────────────── */
   .btn {
     @apply inline-flex items-center justify-center gap-2;
     @apply px-4 py-2.5 rounded-lg font-semibold text-sm;
@@ -41,47 +200,79 @@
   }
 
   .btn-primary {
-    @apply bg-atlas-600 text-white;
-    @apply hover:bg-atlas-500 active:bg-atlas-700;
-    @apply shadow-lg shadow-atlas-600/25;
+    background-color: var(--accent);
+    color: white;
+    box-shadow: 0 4px 6px -1px var(--accent-shadow-color);
   }
+  .btn-primary:hover { background-color: var(--accent-hover); }
+  .btn-primary:active { background-color: var(--accent-dim); }
 
   .btn-secondary {
-    @apply bg-dark-800 text-dark-100;
-    @apply hover:bg-dark-700 active:bg-dark-900;
-    @apply border border-dark-700;
+    background-color: var(--bg-elevated);
+    color: var(--text-primary);
+    border: 1px solid var(--border-default);
   }
+  .btn-secondary:hover { background-color: var(--bg-overlay); }
+  .btn-secondary:active { background-color: var(--bg-surface); }
 
   .btn-ghost {
-    @apply bg-transparent text-dark-300;
-    @apply hover:bg-dark-800 hover:text-dark-100;
+    background-color: transparent;
+    color: var(--text-muted);
+  }
+  .btn-ghost:hover {
+    background-color: var(--bg-elevated);
+    color: var(--text-primary);
   }
 
   .input {
     @apply w-full px-4 py-3 rounded-lg;
-    @apply bg-dark-900 border border-dark-700;
-    @apply text-dark-100 placeholder:text-dark-500;
     @apply transition-all duration-200;
-    @apply focus:border-atlas-500 focus:ring-1 focus:ring-atlas-500;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    color: var(--text-primary);
+  }
+  .input::placeholder { color: var(--text-subtle); }
+  .input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
   }
 
   .card {
-    @apply bg-dark-900/50 backdrop-blur-sm;
-    @apply border border-dark-800 rounded-xl;
-    @apply p-6;
+    @apply rounded-xl p-6;
+    background-color: color-mix(in srgb, var(--bg-surface) 60%, transparent);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-subtle);
   }
 
-  /* Геометрический паттерн для фона */
-  .bg-pattern {
-    background-image: 
-      radial-gradient(circle at 25% 25%, rgba(99, 102, 241, 0.05) 0%, transparent 50%),
-      radial-gradient(circle at 75% 75%, rgba(245, 158, 11, 0.03) 0%, transparent 50%);
+  .modal-overlay {
+    background-color: color-mix(in srgb, var(--bg-base) 80%, transparent);
   }
+
+  /* Sidebar nav item */
+  .nav-item {
+    @apply flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm transition-colors text-left;
+    color: var(--text-muted);
+  }
+  .nav-item:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-elevated);
+  }
+  .nav-item.active,
+  .nav-item.active:hover {
+    color: var(--accent);
+    background-color: color-mix(in srgb, var(--accent) 15%, transparent);
+  }
+
+  .toggle-track {
+    @apply relative inline-flex h-5 w-9 items-center rounded-full transition-colors;
+    background-color: var(--bg-muted);
+  }
+  .toggle-track.on { background-color: var(--accent); }
 }
 
 @layer utilities {
   .text-gradient {
-    @apply bg-gradient-to-r from-atlas-400 to-amber-400 bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-blue-400 to-amber-400 bg-clip-text text-transparent;
   }
 }
-

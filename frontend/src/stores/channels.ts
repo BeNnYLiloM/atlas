@@ -61,10 +61,6 @@ export const useChannelsStore = defineStore('channels', () => {
         }
         mentionCounts.value[ch.id] = ch.mention_count ?? 0
       }
-      // Автоматически выбираем первый текстовый канал, но НЕ отмечаем прочитанным
-      if (!currentChannelId.value && textChannels.value.length > 0) {
-        currentChannelId.value = textChannels.value[0].id
-      }
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Ошибка загрузки каналов'
     } finally {
@@ -137,10 +133,9 @@ export const useChannelsStore = defineStore('channels', () => {
     }
   }
 
-  function setCurrentChannel(id: string, lastMessageId?: string) {
-    currentChannelId.value = id
-    // Отмечаем канал прочитанным при открытии с ID последнего сообщения
-    if (lastMessageId) {
+  function setCurrentChannel(id: string | null, lastMessageId?: string) {
+    currentChannelId.value = id || null
+    if (id && lastMessageId) {
       markAsRead(id, lastMessageId)
     }
   }
@@ -174,9 +169,8 @@ export const useChannelsStore = defineStore('channels', () => {
       channels.value.splice(index, 1)
       console.log('[Channels] Removed channel:', channelId)
 
-      // Если удалили текущий канал, переключаемся на первый доступный
-      if (currentChannelId.value === channelId && textChannels.value.length > 0) {
-        currentChannelId.value = textChannels.value[0].id
+      if (currentChannelId.value === channelId) {
+        currentChannelId.value = null
       }
     }
   }

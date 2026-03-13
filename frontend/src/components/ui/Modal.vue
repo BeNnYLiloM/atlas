@@ -1,18 +1,36 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
 
 interface Props {
   open: boolean
   title?: string
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl'
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  size: 'md',
+})
 
 const emit = defineEmits<{
   close: []
 }>()
 
-// Блокируем скролл при открытии модалки
+const sizeClasses = computed(() => {
+  switch (props.size) {
+    case 'sm':
+      return 'max-w-sm'
+    case 'lg':
+      return 'max-w-2xl'
+    case 'xl':
+      return 'max-w-4xl'
+    case '2xl':
+      return 'max-w-5xl'
+    case 'md':
+    default:
+      return 'max-w-md'
+  }
+})
+
 watch(() => props.open, (isOpen) => {
   if (isOpen) {
     document.body.style.overflow = 'hidden'
@@ -46,12 +64,12 @@ function onKeydown(event: KeyboardEvent) {
     >
       <div
         v-if="props.open"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/80 backdrop-blur-sm"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-base/80 backdrop-blur-sm"
         @click="onBackdropClick"
         @keydown="onKeydown"
       >
         <div
-          class="card w-full max-w-md animate-slide-up"
+          :class="['card w-full animate-slide-up max-h-[min(88vh,900px)] overflow-y-auto', sizeClasses]"
           role="dialog"
           aria-modal="true"
         >
@@ -59,7 +77,7 @@ function onKeydown(event: KeyboardEvent) {
             v-if="props.title"
             class="flex items-center justify-between mb-4"
           >
-            <h2 class="text-lg font-semibold text-white">
+            <h2 class="text-lg font-semibold text-primary">
               {{ props.title }}
             </h2>
             <button
@@ -88,4 +106,3 @@ function onKeydown(event: KeyboardEvent) {
     </Transition>
   </Teleport>
 </template>
-
