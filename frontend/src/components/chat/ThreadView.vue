@@ -39,13 +39,13 @@ function closeThread() {
 <template>
   <div
     v-if="threadStore.isThreadOpen"
-    class="w-96 border-l border-dark-800 bg-dark-900 flex flex-col"
+    class="w-96 border-l border-subtle bg-surface flex flex-col"
   >
     <!-- Header -->
-    <div class="px-4 py-3 border-b border-dark-800 flex items-center justify-between">
+    <div class="px-4 py-3 border-b border-subtle flex items-center justify-between">
       <div class="flex items-center gap-2">
         <svg
-          class="w-5 h-5 text-dark-400"
+          class="w-5 h-5 text-muted"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -57,12 +57,12 @@ function closeThread() {
             d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
           />
         </svg>
-        <h3 class="font-semibold text-dark-100">
+        <h3 class="font-semibold text-primary">
           Тред
         </h3>
       </div>
       <button
-        class="p-1 rounded hover:bg-dark-800 text-dark-400 hover:text-dark-100 transition-colors"
+        class="p-1 rounded hover:bg-elevated text-muted hover:text-primary transition-colors"
         title="Закрыть"
         @click="closeThread"
       >
@@ -85,7 +85,7 @@ function closeThread() {
     <!-- Parent message -->
     <div
       v-if="parentMessage"
-      class="px-4 py-3 border-b border-dark-800 bg-dark-850"
+      class="px-4 py-3 border-b border-subtle bg-elevated"
     >
       <MessageItem :message="parentMessage" />
     </div>
@@ -104,7 +104,7 @@ function closeThread() {
         class="text-center py-8"
       >
         <svg
-          class="w-12 h-12 mx-auto text-dark-600 mb-3"
+          class="w-12 h-12 mx-auto text-faint mb-3"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -116,10 +116,10 @@ function closeThread() {
             d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
           />
         </svg>
-        <p class="text-dark-500 text-sm">
+        <p class="text-subtle text-sm">
           Пока нет ответов
         </p>
-        <p class="text-dark-600 text-xs mt-1">
+        <p class="text-faint text-xs mt-1">
           Начните обсуждение
         </p>
       </div>
@@ -130,7 +130,7 @@ function closeThread() {
         class="flex justify-center py-8"
       >
         <svg
-          class="animate-spin w-6 h-6 text-atlas-500"
+          class="animate-spin w-6 h-6 text-accent"
           fill="none"
           viewBox="0 0 24 24"
         >
@@ -154,7 +154,7 @@ function closeThread() {
     <!-- Input для ответа в треде -->
     <div
       v-if="parentMessage"
-      class="border-t border-dark-800"
+      class="border-t border-subtle"
     >
       <MessageInput
         :channel-id="parentMessage.channel_id"

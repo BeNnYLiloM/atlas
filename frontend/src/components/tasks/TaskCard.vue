@@ -28,21 +28,21 @@ function formatDate(dateStr: string | null): string {
 </script>
 
 <template>
-  <div class="bg-dark-800 border border-dark-700 rounded-xl p-3 hover:border-dark-600 transition-colors group">
+  <div class="bg-elevated border border-default rounded-xl p-3 hover:border-strong transition-colors group">
     <div class="flex items-start justify-between gap-2">
       <div class="flex-1 min-w-0">
-        <p class="text-sm font-medium text-dark-100 line-clamp-2">
+        <p class="text-sm font-medium text-primary line-clamp-2">
           {{ task.title }}
         </p>
         <p
           v-if="task.description"
-          class="text-xs text-dark-500 mt-1 line-clamp-1"
+          class="text-xs text-subtle mt-1 line-clamp-1"
         >
           {{ task.description }}
         </p>
       </div>
       <button
-        class="opacity-0 group-hover:opacity-100 text-dark-600 hover:text-red-400 transition-all"
+        class="opacity-0 group-hover:opacity-100 text-faint hover:text-red-400 transition-all"
         aria-label="Удалить задачу"
         @click="deleteTask"
       >
@@ -71,7 +71,7 @@ function formatDate(dateStr: string | null): string {
       <!-- Due date -->
       <span
         v-if="task.due_date"
-        class="text-xs text-dark-500"
+        class="text-xs text-subtle"
       >
         {{ formatDate(task.due_date) }}
       </span>
@@ -80,7 +80,7 @@ function formatDate(dateStr: string | null): string {
       <div class="ml-auto flex gap-1">
         <button
           v-if="task.status !== 'done'"
-          class="text-xs text-dark-500 hover:text-green-400 transition-colors"
+          class="text-xs text-subtle hover:text-green-400 transition-colors"
           title="Отметить готово"
           @click="changeStatus('done')"
         >
@@ -88,7 +88,7 @@ function formatDate(dateStr: string | null): string {
         </button>
         <button
           v-if="task.status === 'todo'"
-          class="text-xs text-dark-500 hover:text-blue-400 transition-colors"
+          class="text-xs text-subtle hover:text-blue-400 transition-colors"
           title="В работу"
           @click="changeStatus('in_progress')"
         >

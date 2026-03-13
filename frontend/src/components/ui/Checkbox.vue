@@ -35,8 +35,8 @@ function toggle() {
     <span
       class="w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors"
       :class="modelValue
-        ? 'bg-atlas-600 border-atlas-500'
-        : 'bg-dark-900 border-dark-600 group-hover:border-dark-400'"
+        ? 'bg-accent border-accent'
+        : 'bg-surface border-strong group-hover:border-strong'"
     >
       <svg
         v-if="modelValue"
@@ -55,7 +55,7 @@ function toggle() {
     </span>
     <span
       v-if="label"
-      class="text-sm text-dark-200"
+      class="text-sm text-secondary"
     >{{ label }}</span>
   </button>
 </template>

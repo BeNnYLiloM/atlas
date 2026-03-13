@@ -114,6 +114,7 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 func (h *Handler) checkOrigin(r *http.Request) bool {
 	origin := strings.TrimSpace(r.Header.Get("Origin"))
 	if origin == "" {
+		// Нет Origin — не браузерный запрос (curl, server-side), разрешаем.
 		return true
 	}
 
@@ -121,18 +122,20 @@ func (h *Handler) checkOrigin(r *http.Request) bool {
 	if err != nil {
 		return false
 	}
+
+	// Разрешаем same-origin запросы.
 	if strings.EqualFold(originURL.Host, r.Host) {
 		return true
 	}
 
+	// Проверяем allowlist из конфига.
 	for _, allowedOrigin := range h.allowedOrigins {
 		if strings.EqualFold(strings.TrimSpace(allowedOrigin), origin) {
 			return true
 		}
 	}
 
-	host := originURL.Hostname()
-	return host == "localhost" || host == "127.0.0.1"
+	return false
 }
 
 // RegisterRoutes регистрирует WebSocket маршрут

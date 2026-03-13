@@ -29,13 +29,13 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
       @click.self="uiStore.shortcutsVisible = false"
     >
       <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div class="relative bg-dark-900 rounded-2xl border border-dark-700 shadow-2xl w-full max-w-md p-6">
+      <div class="relative bg-surface rounded-2xl border border-default shadow-2xl w-full max-w-md p-6">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-lg font-semibold text-dark-100">
+          <h2 class="text-lg font-semibold text-primary">
             Горячие клавиши
           </h2>
           <button
-            class="text-dark-500 hover:text-dark-300 transition-colors"
+            class="text-subtle hover:text-tertiary transition-colors"
             aria-label="Закрыть"
             @click="uiStore.shortcutsVisible = false"
           >
@@ -59,20 +59,20 @@ onUnmounted(() => document.removeEventListener('keydown', onKeydown))
           <div
             v-for="(shortcut, idx) in SHORTCUTS"
             :key="idx"
-            class="flex items-center justify-between py-2 border-b border-dark-800 last:border-0"
+            class="flex items-center justify-between py-2 border-b border-subtle last:border-0"
           >
-            <span class="text-sm text-dark-300">{{ shortcut.description }}</span>
+            <span class="text-sm text-tertiary">{{ shortcut.description }}</span>
             <div class="flex items-center gap-1">
               <kbd
                 v-for="key in shortcut.keys"
                 :key="key"
-                class="px-2 py-0.5 text-xs bg-dark-700 text-dark-300 rounded border border-dark-600 font-mono"
+                class="px-2 py-0.5 text-xs bg-overlay text-tertiary rounded border border-strong font-mono"
               >{{ key }}</kbd>
             </div>
           </div>
         </div>
 
-        <p class="mt-4 text-xs text-dark-500 text-center">
+        <p class="mt-4 text-xs text-subtle text-center">
           Нажмите Ctrl+/ чтобы закрыть
         </p>
       </div>

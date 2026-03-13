@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -11,27 +13,22 @@ import (
 	"github.com/your-org/atlas/backend/internal/service"
 	"github.com/your-org/atlas/backend/internal/transport/http/middleware"
 	"github.com/your-org/atlas/backend/internal/transport/http/response"
+	"github.com/your-org/atlas/backend/internal/transport/ws"
 )
 
 const refreshCookiePath = "/api/v1/auth"
 
 type AuthHandler struct {
 	authService *service.AuthService
+	fileService *service.FileService
 	jwtConfig   config.JWTConfig
+	wsHub       *ws.Hub
 }
 
-func NewAuthHandler(authService *service.AuthService, jwtConfig config.JWTConfig) *AuthHandler {
-	return &AuthHandler{authService: authService, jwtConfig: jwtConfig}
+func NewAuthHandler(authService *service.AuthService, fileService *service.FileService, jwtConfig config.JWTConfig, wsHub *ws.Hub) *AuthHandler {
+	return &AuthHandler{authService: authService, fileService: fileService, jwtConfig: jwtConfig, wsHub: wsHub}
 }
 
-// Register godoc
-// @Summary Регистрация нового пользователя
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param input body domain.UserCreate true "Данные пользователя"
-// @Success 201 {object} response.SuccessResponse
-// @Router /auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	var input domain.UserCreate
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -52,14 +49,6 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	})
 }
 
-// Login godoc
-// @Summary Авторизация пользователя
-// @Tags auth
-// @Accept json
-// @Produce json
-// @Param input body domain.UserLogin true "Данные для входа"
-// @Success 200 {object} response.SuccessResponse
-// @Router /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	var input domain.UserLogin
 	if err := c.ShouldBindJSON(&input); err != nil {
@@ -80,12 +69,6 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
-// Refresh godoc
-// @Summary Обновить access token по refresh cookie
-// @Tags auth
-// @Produce json
-// @Success 200 {object} response.SuccessResponse
-// @Router /auth/refresh [post]
 func (h *AuthHandler) Refresh(c *gin.Context) {
 	refreshToken, _ := c.Cookie(h.jwtConfig.RefreshCookieName)
 	tokens, nextRefreshToken, err := h.authService.Refresh(c.Request.Context(), refreshToken, sessionMetadataFromRequest(c))
@@ -101,12 +84,6 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 	})
 }
 
-// Logout godoc
-// @Summary Завершить текущую сессию
-// @Tags auth
-// @Produce json
-// @Success 204
-// @Router /auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
 	refreshToken, _ := c.Cookie(h.jwtConfig.RefreshCookieName)
 	if err := h.authService.Logout(c.Request.Context(), refreshToken); err != nil {
@@ -118,13 +95,6 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	response.NoContent(c)
 }
 
-// LogoutAll godoc
-// @Summary Завершить все активные сессии
-// @Tags auth
-// @Security Bearer
-// @Produce json
-// @Success 204
-// @Router /auth/logout-all [post]
 func (h *AuthHandler) LogoutAll(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 	if err := h.authService.LogoutAll(c.Request.Context(), userID); err != nil {
@@ -136,13 +106,6 @@ func (h *AuthHandler) LogoutAll(c *gin.Context) {
 	response.NoContent(c)
 }
 
-// Me godoc
-// @Summary Получить текущего пользователя
-// @Tags auth
-// @Security Bearer
-// @Produce json
-// @Success 200 {object} response.SuccessResponse
-// @Router /auth/me [get]
 func (h *AuthHandler) Me(c *gin.Context) {
 	userID := middleware.GetUserID(c)
 
@@ -155,14 +118,200 @@ func (h *AuthHandler) Me(c *gin.Context) {
 	response.Success(c, user)
 }
 
-// SearchByEmail ищет пользователя по email
-// @Summary Поиск пользователя по email
-// @Tags users
-// @Security Bearer
-// @Produce json
-// @Param email query string true "Email пользователя"
-// @Success 200 {object} response.SuccessResponse
-// @Router /users/search [get]
+func (h *AuthHandler) UpdateMe(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+
+	var input domain.UserUpdate
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if input.DisplayName != nil && strings.TrimSpace(*input.DisplayName) == "" {
+		response.BadRequest(c, "display_name must not be empty")
+		return
+	}
+
+	updatedUser, err := h.authService.UpdateProfile(c.Request.Context(), userID, input)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, updatedUser)
+}
+
+const maxAvatarBytes = 10 << 20 // 10 МБ
+
+func (h *AuthHandler) UploadAvatar(c *gin.Context) {
+	if h.fileService == nil {
+		response.BadRequest(c, "file storage unavailable")
+		return
+	}
+
+	if err := c.Request.ParseMultipartForm(maxAvatarBytes); err != nil {
+		response.BadRequest(c, "avatar file is required")
+		return
+	}
+
+	userID := middleware.GetUserID(c)
+	file, header, err := c.Request.FormFile("avatar")
+	if err != nil {
+		response.BadRequest(c, "avatar file is required")
+		return
+	}
+	defer file.Close()
+
+	if header.Size > maxAvatarBytes {
+		response.BadRequest(c, "avatar must not exceed 10 MB")
+		return
+	}
+
+	contentType := header.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	if !strings.HasPrefix(strings.ToLower(contentType), "image/") {
+		response.BadRequest(c, "avatar must be an image")
+		return
+	}
+
+	uploaded, err := h.fileService.Upload(c.Request.Context(), userID, header.Filename, file, header.Size, contentType)
+	if err != nil {
+		response.BadRequest(c, fmt.Sprintf("upload failed: %v", err))
+		return
+	}
+
+	updatedUser, err := h.authService.UpdateProfile(c.Request.Context(), userID, domain.UserUpdate{
+		AvatarURL: &uploaded.URL,
+	})
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.Success(c, updatedUser)
+}
+
+type sessionResponse struct {
+	*domain.AuthSession
+	IsCurrent bool `json:"is_current"`
+}
+
+func (h *AuthHandler) ListSessions(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	currentSessionID := middleware.GetSessionID(c)
+
+	sessions, err := h.authService.ListActiveSessions(c.Request.Context(), userID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	result := make([]sessionResponse, 0, len(sessions))
+	for _, s := range sessions {
+		result = append(result, sessionResponse{
+			AuthSession: s,
+			IsCurrent:   s.ID == currentSessionID,
+		})
+	}
+	response.Success(c, result)
+}
+
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+
+	var input domain.UserChangePassword
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if err := h.authService.ChangePassword(c.Request.Context(), userID, input); err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	response.NoContent(c)
+}
+
+type updateStatusRequest struct {
+	Status       domain.UserStatus `json:"status"`
+	CustomStatus *string           `json:"custom_status"`
+}
+
+func (h *AuthHandler) UpdateStatus(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+
+	var input updateStatusRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	user, err := h.authService.UpdateStatus(c.Request.Context(), userID, input.Status, input.CustomStatus)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	// Рассылаем presence-событие всем участникам workspace'ов этого пользователя
+	if h.wsHub != nil {
+		go h.wsHub.BroadcastPresence(userID, string(input.Status))
+	}
+
+	response.Success(c, user)
+}
+
+type deleteAccountRequest struct {
+	Password string `json:"password"`
+}
+
+func (h *AuthHandler) DeleteAccount(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+
+	var input deleteAccountRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	if input.Password == "" {
+		response.BadRequest(c, "password is required")
+		return
+	}
+
+	if err := h.authService.DeleteAccount(c.Request.Context(), userID, input.Password); err != nil {
+		response.Error(c, err)
+		return
+	}
+
+	h.clearRefreshCookie(c)
+	response.NoContent(c)
+}
+
+func (h *AuthHandler) RevokeSession(c *gin.Context) {
+	userID := middleware.GetUserID(c)
+	currentSessionID := middleware.GetSessionID(c)
+	sessionID := c.Param("id")
+
+	if sessionID == currentSessionID {
+		response.BadRequest(c, "cannot revoke current session; use logout instead")
+		return
+	}
+
+	revoked, err := h.authService.RevokeSession(c.Request.Context(), sessionID, userID)
+	if err != nil {
+		response.Error(c, err)
+		return
+	}
+	if !revoked {
+		c.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
+		return
+	}
+
+	response.NoContent(c)
+}
+
 func (h *AuthHandler) SearchByEmail(c *gin.Context) {
 	email := c.Query("email")
 	if email == "" {
@@ -179,7 +328,6 @@ func (h *AuthHandler) SearchByEmail(c *gin.Context) {
 	response.Success(c, user)
 }
 
-// RegisterRoutes регистрирует маршруты
 func (h *AuthHandler) RegisterRoutes(r *gin.RouterGroup, authMiddleware gin.HandlerFunc) {
 	loginLimiter := middleware.NewRateLimiter(10, time.Minute)
 	registerLimiter := middleware.NewRateLimiter(5, time.Minute)
@@ -193,6 +341,13 @@ func (h *AuthHandler) RegisterRoutes(r *gin.RouterGroup, authMiddleware gin.Hand
 		auth.POST("/logout", h.Logout)
 		auth.POST("/logout-all", authMiddleware, h.LogoutAll)
 		auth.GET("/me", authMiddleware, h.Me)
+		auth.PATCH("/me", authMiddleware, h.UpdateMe)
+		auth.POST("/me/avatar", authMiddleware, h.UploadAvatar)
+		auth.PATCH("/me/password", authMiddleware, h.ChangePassword)
+		auth.PATCH("/me/status", authMiddleware, h.UpdateStatus)
+		auth.DELETE("/me", authMiddleware, h.DeleteAccount)
+		auth.GET("/me/sessions", authMiddleware, h.ListSessions)
+		auth.DELETE("/me/sessions/:id", authMiddleware, h.RevokeSession)
 	}
 
 	users := r.Group("/users", authMiddleware)

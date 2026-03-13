@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { authApi } from '@/api'
+import { authApi, usersApi } from '@/api'
 import { applyAuthTokens, clearAccessToken, getAccessToken, refreshAccessToken } from '@/api/session'
-import type { User, UserCreate, UserLogin } from '@/types'
+import type { User, UserCreate, UserLogin, UserUpdate } from '@/types'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
@@ -78,6 +78,42 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function updateProfile(data: UserUpdate) {
+    if (!user.value) {
+      throw new Error('user is not loaded')
+    }
+
+    loading.value = true
+    error.value = null
+    try {
+      user.value = await usersApi.updateMe(data)
+      return user.value
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Ошибка обновления профиля'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function uploadAvatar(file: File) {
+    if (!user.value) {
+      throw new Error('user is not loaded')
+    }
+
+    loading.value = true
+    error.value = null
+    try {
+      user.value = await usersApi.uploadAvatar(file)
+      return user.value
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Ошибка загрузки аватара'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function logout() {
     try {
       await authApi.logout()
@@ -112,6 +148,8 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     initialize,
     fetchUser,
+    updateProfile,
+    uploadAvatar,
     logout,
     logoutAll,
   }

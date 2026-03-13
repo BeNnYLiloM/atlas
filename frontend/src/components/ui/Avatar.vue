@@ -5,7 +5,7 @@ interface Props {
   src?: string | null
   name: string
   size?: 'xs' | 'sm' | 'md' | 'lg'
-  status?: 'online' | 'offline' | 'away' | null
+  status?: 'online' | 'offline' | 'away' | 'dnd' | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -28,9 +28,10 @@ const statusSizeClasses = {
 }
 
 const statusColors = {
-  online: 'bg-emerald-500',
-  offline: 'bg-dark-500',
-  away: 'bg-amber-500',
+  online:  'bg-emerald-500',
+  away:    'bg-amber-500',
+  dnd:     'bg-red-500',
+  offline: 'bg-muted-fill',
 }
 
 const initials = computed(() => {
@@ -45,7 +46,7 @@ const initials = computed(() => {
 // Генерируем цвет на основе имени
 const bgColor = computed(() => {
   const colors = [
-    'bg-atlas-600',
+    'bg-accent',
     'bg-emerald-600',
     'bg-amber-600',
     'bg-rose-600',
@@ -71,7 +72,7 @@ const bgColor = computed(() => {
     <div
       v-else
       :class="[
-        'rounded-full flex items-center justify-center font-semibold text-white',
+        'rounded-full flex items-center justify-center font-semibold text-primary',
         sizeClasses[props.size],
         bgColor,
       ]"
@@ -81,7 +82,7 @@ const bgColor = computed(() => {
     <span
       v-if="props.status"
       :class="[
-        'absolute bottom-0 right-0 rounded-full border-2 border-dark-900',
+        'absolute bottom-0 right-0 rounded-full border-2 border-subtle',
         statusSizeClasses[props.size],
         statusColors[props.status],
       ]"

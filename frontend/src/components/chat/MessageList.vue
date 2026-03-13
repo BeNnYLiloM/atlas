@@ -5,6 +5,7 @@ import MessageItem from './MessageItem.vue'
 
 const props = defineProps<{
   channelId: string
+  highlightMessageId?: string | null
 }>()
 
 const messagesStore = useMessagesStore()
@@ -16,6 +17,21 @@ const hasMore = computed(() => messagesStore.hasMoreByChannel[props.channelId] ?
 function scrollToBottom() {
   if (containerRef.value) {
     containerRef.value.scrollTop = containerRef.value.scrollHeight
+  }
+}
+
+function scrollToMessage(messageId: string) {
+  const tryScroll = () => {
+    const el = containerRef.value?.querySelector(`[data-message-id="${messageId}"]`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return true
+    }
+    return false
+  }
+  // Сразу + с задержкой на случай если DOM ещё не готов
+  if (!tryScroll()) {
+    setTimeout(tryScroll, 150)
   }
 }
 
@@ -60,7 +76,7 @@ onMounted(async () => {
   scrollToBottom()
 })
 
-defineExpose({ scrollToBottom })
+defineExpose({ scrollToBottom, scrollToMessage })
 
 // Группировка сообщений по дате
 const groupedMessages = computed(() => {
@@ -98,7 +114,7 @@ const groupedMessages = computed(() => {
       class="flex justify-center py-3"
     >
       <svg
-        class="animate-spin w-5 h-5 text-atlas-500"
+        class="animate-spin w-5 h-5 text-accent"
         fill="none"
         viewBox="0 0 24 24"
       >
@@ -119,7 +135,7 @@ const groupedMessages = computed(() => {
     </div>
     <p
       v-else-if="!hasMore && messages.length > 0"
-      class="text-center text-xs text-dark-600 py-2"
+      class="text-center text-xs text-faint py-2"
     >
       Начало истории канала
     </p>
@@ -130,7 +146,7 @@ const groupedMessages = computed(() => {
       class="flex justify-center py-8"
     >
       <svg
-        class="animate-spin w-6 h-6 text-atlas-500"
+        class="animate-spin w-6 h-6 text-accent"
         fill="none"
         viewBox="0 0 24 24"
       >
@@ -158,18 +174,23 @@ const groupedMessages = computed(() => {
       >
         <!-- Date separator -->
         <div class="flex items-center gap-4 my-6">
-          <div class="flex-1 h-px bg-dark-800" />
-          <span class="text-xs text-dark-500 font-medium">{{ group.date }}</span>
-          <div class="flex-1 h-px bg-dark-800" />
+          <div class="flex-1 h-px bg-elevated" />
+          <span class="text-xs text-subtle font-medium">{{ group.date }}</span>
+          <div class="flex-1 h-px bg-elevated" />
         </div>
 
         <!-- Messages -->
         <div class="space-y-1">
-          <MessageItem
+          <div
             v-for="message in group.messages"
             :key="message.id"
-            :message="message"
-          />
+            :data-message-id="message.id"
+          >
+            <MessageItem
+              :message="message"
+              :highlighted="message.id === props.highlightMessageId"
+            />
+          </div>
         </div>
       </div>
     </template>
@@ -179,9 +200,9 @@ const groupedMessages = computed(() => {
       v-else
       class="flex flex-col items-center justify-center h-full text-center"
     >
-      <div class="w-16 h-16 mb-4 rounded-2xl bg-dark-800 flex items-center justify-center">
+      <div class="w-16 h-16 mb-4 rounded-2xl bg-elevated flex items-center justify-center">
         <svg
-          class="w-8 h-8 text-atlas-500"
+          class="w-8 h-8 text-accent"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -194,10 +215,10 @@ const groupedMessages = computed(() => {
           />
         </svg>
       </div>
-      <h3 class="text-lg font-semibold text-dark-200 mb-1">
+      <h3 class="text-lg font-semibold text-secondary mb-1">
         Начните общение!
       </h3>
-      <p class="text-dark-500 text-sm max-w-xs">
+      <p class="text-subtle text-sm max-w-xs">
         Это начало канала. Отправьте первое сообщение, чтобы начать разговор.
       </p>
     </div>

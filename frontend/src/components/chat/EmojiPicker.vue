@@ -115,18 +115,18 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="w-[360px] bg-dark-900 border border-dark-700 rounded-xl flex flex-col"
+    class="w-[360px] bg-surface border border-default rounded-xl flex flex-col"
     style="height: 420px;"
   >
     <!-- Tab bar -->
-    <div class="flex border-b border-dark-700 px-2 pt-2 gap-1 shrink-0">
+    <div class="flex border-b border-default px-2 pt-2 gap-1 shrink-0">
       <button
         v-for="tab in (['emoji', 'gif', 'sticker'] as TabType[])"
         :key="tab"
         class="px-3 py-1.5 text-xs font-medium rounded-t transition-colors"
         :class="activeTab === tab
-          ? 'text-atlas-400 border-b-2 border-atlas-400 -mb-px bg-dark-800'
-          : 'text-dark-400 hover:text-dark-200'"
+          ? 'text-accent border-b-2 border-accent -mb-px bg-elevated'
+          : 'text-muted hover:text-secondary'"
         @click="activeTab = tab"
       >
         <span v-if="tab === 'emoji'">😀 Эмодзи</span>
@@ -144,7 +144,7 @@ onUnmounted(() => {
         v-model="searchQuery"
         type="text"
         :placeholder="activeTab === 'gif' ? 'Поиск GIF...' : 'Поиск стикеров...'"
-        class="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-1.5 text-sm text-dark-100 placeholder:text-dark-500 focus:outline-none focus:border-atlas-500/60"
+        class="w-full bg-elevated border border-default rounded-lg px-3 py-1.5 text-sm text-primary placeholder:text-subtle focus:outline-none focus:border-accent/60"
         @input="onSearch"
       >
     </div>
@@ -168,7 +168,7 @@ onUnmounted(() => {
           class="flex items-center justify-center h-full"
         >
           <svg
-            class="animate-spin w-6 h-6 text-atlas-400"
+            class="animate-spin w-6 h-6 text-accent"
             fill="none"
             viewBox="0 0 24 24"
           >
@@ -189,7 +189,7 @@ onUnmounted(() => {
         </div>
         <div
           v-else-if="(activeTab === 'gif' ? gifResults : stickerResults).length === 0"
-          class="flex items-center justify-center h-full text-dark-500 text-sm"
+          class="flex items-center justify-center h-full text-subtle text-sm"
         >
           Ничего не найдено
         </div>
@@ -200,7 +200,7 @@ onUnmounted(() => {
           <div
             v-for="item in (activeTab === 'gif' ? gifResults : stickerResults)"
             :key="item.id"
-            class="break-inside-avoid cursor-pointer rounded-lg overflow-hidden hover:ring-2 hover:ring-atlas-500 transition-all"
+            class="break-inside-avoid cursor-pointer rounded-lg overflow-hidden hover:ring-2 hover:ring-[var(--accent)] transition-all"
             @click="selectMedia(item, activeTab as 'gif' | 'sticker')"
           >
             <img

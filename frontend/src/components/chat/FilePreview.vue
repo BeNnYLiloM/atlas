@@ -40,7 +40,7 @@ const imageUrl = computed(() => {
     <!-- Image preview -->
     <div
       v-if="isImage && imageUrl"
-      class="w-32 h-32 rounded-lg overflow-hidden bg-dark-800 border border-dark-700"
+      class="w-32 h-32 rounded-lg overflow-hidden bg-elevated border border-default"
     >
       <img
         :src="imageUrl"
@@ -52,10 +52,10 @@ const imageUrl = computed(() => {
     <!-- File icon for non-images -->
     <div
       v-else
-      class="flex items-center gap-2 px-3 py-2 rounded-lg bg-dark-800 border border-dark-700 max-w-48"
+      class="flex items-center gap-2 px-3 py-2 rounded-lg bg-elevated border border-default max-w-48"
     >
       <svg
-        class="w-5 h-5 text-atlas-400 flex-shrink-0"
+        class="w-5 h-5 text-accent flex-shrink-0"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -68,10 +68,10 @@ const imageUrl = computed(() => {
         />
       </svg>
       <div class="min-w-0">
-        <p class="text-xs text-dark-200 truncate">
+        <p class="text-xs text-secondary truncate">
           {{ fileName }}
         </p>
-        <p class="text-xs text-dark-500">
+        <p class="text-xs text-subtle">
           {{ fileSize }}
         </p>
       </div>
@@ -80,7 +80,7 @@ const imageUrl = computed(() => {
     <!-- Remove button -->
     <button
       v-if="removable"
-      class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-dark-600 text-dark-300 hover:bg-red-600 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+      class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-muted-fill text-tertiary hover:bg-red-600 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
       @click="emit('remove')"
     >
       <svg
@@ -103,7 +103,7 @@ const imageUrl = computed(() => {
       v-if="isUploaded"
       :href="(file as UploadedFile).url"
       target="_blank"
-      class="text-xs text-atlas-400 hover:text-atlas-300 mt-1"
+      class="text-xs text-accent hover:text-accent-strong mt-1"
     >
       Скачать
     </a>

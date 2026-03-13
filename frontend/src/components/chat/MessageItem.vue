@@ -13,6 +13,7 @@ import type { ReactionGroup } from '@/api/reactions'
 
 const props = defineProps<{
   message: Message
+  highlighted?: boolean
 }>()
 
 const threadStore = useThreadStore()
@@ -114,7 +115,7 @@ const formattedContent = computed(() => {
   // Экранируем HTML
   content = content.replace(/</g, '&lt;').replace(/>/g, '&gt;')
   // Код в бэктиках
-  content = content.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-dark-800 text-atlas-300 font-mono text-sm">$1</code>')
+  content = content.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-elevated text-accent-strong font-mono text-sm">$1</code>')
   // Жирный
   content = content.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold">$1</strong>')
   // Курсив
@@ -135,7 +136,7 @@ const formattedContent = computed(() => {
   // Ссылки
   content = content.replace(
     /(https?:\/\/[^\s]+)/g,
-    '<a href="$1" target="_blank" rel="noopener" class="text-atlas-400 hover:text-atlas-300 underline">$1</a>'
+    '<a href="$1" target="_blank" rel="noopener" class="text-accent hover:text-accent-strong underline">$1</a>'
   )
   return content
 })
@@ -152,8 +153,9 @@ const isMentioned = computed(() => {
   <div
     class="group flex gap-3 py-1 px-2 -mx-2 rounded-lg transition-colors relative"
     :class="[
-      showReactionPicker ? 'bg-dark-800/50' : 'hover:bg-dark-800/50',
+      showReactionPicker ? 'bg-elevated/50' : 'hover:bg-elevated/50',
       isMentioned ? 'mentioned-message' : '',
+      highlighted ? 'search-highlighted' : '',
     ]"
   >
     <Avatar
@@ -164,8 +166,8 @@ const isMentioned = computed(() => {
 
     <div class="flex-1 min-w-0">
       <div class="flex items-baseline gap-2">
-        <span class="font-semibold text-dark-100 text-sm">{{ displayName }}</span>
-        <span class="text-xs text-dark-500">{{ time }}</span>
+        <span class="font-semibold text-primary text-sm">{{ displayName }}</span>
+        <span class="text-xs text-subtle">{{ time }}</span>
       </div>
       <img
         v-if="isGiphyMedia"
@@ -181,7 +183,7 @@ const isMentioned = computed(() => {
       </div>
       <div
         v-else
-        class="text-dark-200 text-sm leading-relaxed break-words"
+        class="text-secondary text-sm leading-relaxed break-words"
         v-html="formattedContent"
       />
       
@@ -200,7 +202,7 @@ const isMentioned = computed(() => {
       <!-- Thread preview -->
       <button
         v-if="hasThread"
-        class="mt-2 flex items-center gap-2 text-xs text-atlas-400 hover:text-atlas-300 transition-colors"
+        class="mt-2 flex items-center gap-2 text-xs text-accent hover:text-accent-strong transition-colors"
         @click="openThread"
       >
         <svg
@@ -219,12 +221,12 @@ const isMentioned = computed(() => {
         <span class="font-medium">{{ threadStats.count }} {{ threadStats.count === 1 ? 'ответ' : 'ответа' }}</span>
         <span
           v-if="threadStats.lastReplyUser"
-          class="text-dark-500"
+          class="text-subtle"
         >{{ threadStats.lastReplyUser }}</span>
         <!-- Unread indicator -->
         <span 
           v-if="hasUnreadInThread" 
-          class="ml-1 px-1.5 py-0.5 text-xs font-bold bg-atlas-600 text-white rounded-full"
+          class="ml-1 px-1.5 py-0.5 text-xs font-bold bg-accent text-white rounded-full"
         >
           {{ threadStats.unreadCount }}
         </span>
@@ -239,8 +241,8 @@ const isMentioned = computed(() => {
       <div class="reaction-picker-wrapper">
         <button
           ref="reactionBtnRef"
-          class="p-2 rounded text-dark-500 hover:text-dark-100 hover:bg-dark-700"
-          :class="{ 'text-atlas-400 bg-dark-700': showReactionPicker }"
+          class="p-2 rounded text-subtle hover:text-primary hover:bg-overlay"
+          :class="{ 'text-accent bg-overlay': showReactionPicker }"
           title="Реакция"
           @click.stop="openReactionPicker"
         >
@@ -269,7 +271,7 @@ const isMentioned = computed(() => {
             @click="showReactionPicker = false"
           />
           <div
-            class="fixed z-[999] shadow-2xl rounded-xl overflow-hidden border border-dark-700"
+            class="fixed z-[999] shadow-2xl rounded-xl overflow-hidden border border-default"
             :style="pickerStyle"
           >
             <ReactionEmojiPicker @select="addReaction($event)" />
@@ -277,7 +279,7 @@ const isMentioned = computed(() => {
         </template>
       </Teleport>
       <button
-        class="p-2 rounded text-dark-500 hover:text-dark-100 hover:bg-dark-700"
+        class="p-2 rounded text-subtle hover:text-primary hover:bg-overlay"
         title="Создать тред"
         @click="openThread"
       >
@@ -296,7 +298,7 @@ const isMentioned = computed(() => {
         </svg>
       </button>
       <button
-        class="p-2 rounded text-dark-500 hover:text-dark-100 hover:bg-dark-700"
+        class="p-2 rounded text-subtle hover:text-primary hover:bg-overlay"
         title="Создать задачу из сообщения"
         @click="showTaskModal = true"
       >
@@ -355,5 +357,15 @@ const isMentioned = computed(() => {
   background: rgba(250, 168, 26, 0.05) !important;
   border-left: 2px solid rgba(250, 168, 26, 0.5);
   padding-left: calc(0.5rem - 2px);
+}
+
+.search-highlighted {
+  animation: highlight-fade 2.5s ease-out forwards;
+}
+
+@keyframes highlight-fade {
+  0%   { background-color: rgba(88, 101, 242, 0.25); }
+  30%  { background-color: rgba(88, 101, 242, 0.20); }
+  100% { background-color: transparent; }
 }
 </style>

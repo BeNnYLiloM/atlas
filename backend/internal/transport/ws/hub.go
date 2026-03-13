@@ -1,14 +1,22 @@
 package ws
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
 )
 
+// UserStatusReader — минимальный интерфейс для чтения статуса пользователя.
+// Избегаем циклического импорта repository → ws.
+type UserStatusReader interface {
+	GetStatusByID(ctx context.Context, userID string) (string, error)
+}
+
 // Hub управляет WebSocket соединениями
 type Hub struct {
+	userStatus UserStatusReader
 	// Клиенты по workspace: workspaceID -> map[clientID]Client (основное)
 	workspaces map[string]map[string]*Client
 
@@ -62,8 +70,9 @@ type OutgoingMessage struct {
 	Payload interface{} `json:"payload"` // Используем "payload" вместо "data"
 }
 
-func NewHub() *Hub {
+func NewHub(userStatus UserStatusReader) *Hub {
 	return &Hub{
+		userStatus:  userStatus,
 		workspaces:  make(map[string]map[string]*Client),
 		channels:    make(map[string]map[string]*Client),
 		users:       make(map[string][]*Client),
@@ -186,26 +195,32 @@ func (h *Hub) handleSubscribe(sub *Subscription) {
 			h.workspaces[sub.WorkspaceID] = make(map[string]*Client)
 		}
 
-		// Собираем уже онлайн-пользователей до добавления нового клиента
-		onlineUserIDs := make(map[string]bool)
+		// Собираем userID уже подключённых участников до добавления нового клиента.
+		// Уникальные userID — один юзер может иметь несколько соединений.
+		existingUserIDs := make(map[string]bool)
 		for _, c := range h.workspaces[sub.WorkspaceID] {
-			onlineUserIDs[c.UserID] = true
+			existingUserIDs[c.UserID] = true
 		}
 
 		h.workspaces[sub.WorkspaceID][sub.Client.ID] = sub.Client
 		log.Printf("[Hub] Client subscribed to workspace: userID=%s, workspaceID=%s", sub.Client.UserID, sub.WorkspaceID)
 
-		// Отправляем новому клиенту текущие статусы всех уже онлайн-участников
 		newClient := sub.Client
-		go func(onlineIDs map[string]bool) {
-			outMsg := OutgoingMessage{}
-			for uid := range onlineIDs {
-				outMsg.Type = "presence"
-				outMsg.Payload = map[string]interface{}{
-					"user_id": uid,
-					"status":  "online",
+		userStatus := h.userStatus
+
+		// Отправляем новому клиенту реальные статусы всех уже подключённых участников
+		go func(existing map[string]bool) {
+			for uid := range existing {
+				status := "online"
+				if userStatus != nil {
+					if s, err := userStatus.GetStatusByID(context.Background(), uid); err == nil && s != "" {
+						status = s
+					}
 				}
-				data, err := json.Marshal(outMsg)
+				data, err := json.Marshal(OutgoingMessage{
+					Type:    "presence",
+					Payload: map[string]interface{}{"user_id": uid, "status": status},
+				})
 				if err != nil {
 					continue
 				}
@@ -214,13 +229,22 @@ func (h *Hub) handleSubscribe(sub *Subscription) {
 				default:
 				}
 			}
-		}(onlineUserIDs)
+		}(existingUserIDs)
 
-		// Broadcast presence online всем остальным в воркспейсе
+		// Читаем реальный статус подключившегося пользователя из БД и бродкастим
 		go func(workspaceID, userID string) {
+			status := "online"
+			if userStatus != nil {
+				if s, err := userStatus.GetStatusByID(context.Background(), userID); err == nil && s != "" {
+					// "offline" в БД — если пользователь поставил "невидимку".
+					// При реальном подключении к WS всё равно бродкастим как "online"
+					// только если статус "offline" (невидимка — уважаем выбор).
+					status = s
+				}
+			}
 			h.BroadcastToWorkspace(workspaceID, "presence", map[string]interface{}{
 				"user_id": userID,
-				"status":  "online",
+				"status":  status,
 			}, "")
 		}(sub.WorkspaceID, sub.Client.UserID)
 	}

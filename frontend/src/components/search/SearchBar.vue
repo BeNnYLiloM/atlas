@@ -28,7 +28,7 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
-// Горячая клавиша Ctrl+K / Cmd+K
+// Горячая клавиша Ctrl+K / Cmd+K + глобальный Escape
 function onGlobalKeydown(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
     e.preventDefault()
@@ -37,6 +37,9 @@ function onGlobalKeydown(e: KeyboardEvent) {
     } else {
       searchStore.open()
     }
+  } else if (e.key === 'Escape' && searchStore.isOpen) {
+    e.preventDefault()
+    searchStore.close()
   }
 }
 
@@ -47,7 +50,7 @@ onUnmounted(() => document.removeEventListener('keydown', onGlobalKeydown))
 <template>
   <!-- Trigger button in header -->
   <button
-    class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-dark-800 border border-dark-700 text-dark-400 hover:text-dark-200 hover:border-dark-600 transition-colors text-sm"
+    class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-elevated border border-default text-muted hover:text-secondary hover:border-strong transition-colors text-sm"
     @click="searchStore.open()"
   >
     <svg
@@ -64,25 +67,22 @@ onUnmounted(() => document.removeEventListener('keydown', onGlobalKeydown))
       />
     </svg>
     <span>Поиск</span>
-    <kbd class="ml-2 text-xs bg-dark-700 px-1.5 py-0.5 rounded">Ctrl+K</kbd>
+    <kbd class="ml-2 text-xs bg-overlay px-1.5 py-0.5 rounded">Ctrl+K</kbd>
   </button>
 
   <!-- Search modal overlay -->
   <Teleport to="body">
     <div
       v-if="searchStore.isOpen"
-      class="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4"
+      class="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/60 backdrop-blur-sm"
       @click.self="searchStore.close()"
     >
-      <!-- Backdrop -->
-      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-
       <!-- Search panel -->
-      <div class="relative w-full max-w-2xl bg-dark-900 rounded-2xl border border-dark-700 shadow-2xl overflow-hidden">
+      <div class="w-full max-w-2xl bg-surface rounded-2xl border border-default shadow-2xl overflow-hidden">
         <!-- Input -->
-        <div class="flex items-center gap-3 px-4 py-3 border-b border-dark-700">
+        <div class="flex items-center gap-3 px-4 py-3 border-b border-default">
           <svg
-            class="w-5 h-5 text-dark-400 flex-shrink-0"
+            class="w-5 h-5 text-muted flex-shrink-0"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -99,15 +99,15 @@ onUnmounted(() => document.removeEventListener('keydown', onGlobalKeydown))
             :value="searchStore.query"
             type="text"
             placeholder="Поиск по сообщениям..."
-            class="flex-1 bg-transparent text-dark-100 placeholder:text-dark-500 focus:outline-none text-base"
+            class="flex-1 bg-transparent text-primary placeholder:text-subtle focus:outline-none text-base"
             @input="onInput"
             @keydown="onKeydown"
           >
           <div
             v-if="searchStore.loading"
-            class="w-4 h-4 border-2 border-atlas-500 border-t-transparent rounded-full animate-spin"
+            class="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin"
           />
-          <kbd class="text-xs text-dark-500 bg-dark-800 px-1.5 py-0.5 rounded">Esc</kbd>
+          <kbd class="text-xs text-subtle bg-elevated px-1.5 py-0.5 rounded">Esc</kbd>
         </div>
 
         <!-- Results -->
@@ -118,7 +118,7 @@ onUnmounted(() => document.removeEventListener('keydown', onGlobalKeydown))
           v-if="!searchStore.query && !searchStore.loading"
           class="px-4 py-8 text-center"
         >
-          <p class="text-dark-500 text-sm">
+          <p class="text-subtle text-sm">
             Введите запрос для поиска по сообщениям
           </p>
         </div>

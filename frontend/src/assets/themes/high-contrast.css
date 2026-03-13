@@ -1,18 +1,39 @@
 :root[data-theme="high-contrast"] {
-  --color-bg-primary: #000000;
-  --color-bg-secondary: #0d1117;
-  --color-bg-tertiary: #161b22;
-  --color-bg-hover: #21262d;
-  --color-border: #ffffff;
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #e6edf3;
-  --color-text-muted: #8b949e;
-  --color-accent: #58a6ff;
-  --color-accent-hover: #79c0ff;
+  /* Фоны */
+  --bg-base:      #000000;
+  --bg-surface:   #0d1117;
+  --bg-elevated:  #161b22;
+  --bg-overlay:   #21262d;
+  --bg-muted:     #30363d;
+
+  /* Текст */
+  --text-primary:   #ffffff;
+  --text-secondary: #f0f0f0;
+  --text-tertiary:  #c0c0c0;
+  --text-muted:     #909090;
+  --text-subtle:    #606060;
+  --text-faint:     #404040;
+
+  /* Бордеры */
+  --border-subtle:  #30363d;
+  --border-default: #ffffff;
+  --border-strong:  #ffffff;
+
+  /* Акцент */
+  --accent:         var(--accent-400-hex);
+  --accent-hover:   var(--accent-300-hex, var(--accent-400-hex));
+  --accent-dim:     var(--accent-500-hex);
+  --accent-shadow:  var(--accent-shadow-color);
+
+  /* Статусы */
   --color-success: #56d364;
-  --color-danger: #ff7b72;
+  --color-danger:  #ff7b72;
   --color-warning: #e3b341;
-  --color-online: #56d364;
-  --color-away: #e3b341;
+  --color-online:  #56d364;
+  --color-away:    #e3b341;
   --color-offline: #8b949e;
+
+  /* Скроллбар */
+  --scrollbar-thumb: #484f58;
+  --scrollbar-hover: #6e7681;
 }

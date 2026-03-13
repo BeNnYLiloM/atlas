@@ -32,7 +32,7 @@ function onInput(event: Event) {
     <label
       v-if="props.label"
       :for="props.id"
-      class="block text-sm font-medium text-dark-300"
+      class="block text-sm font-medium text-tertiary"
     >
       {{ props.label }}
     </label>

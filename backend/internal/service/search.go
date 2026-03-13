@@ -5,11 +5,10 @@ import (
 	"time"
 
 	"github.com/your-org/atlas/backend/internal/repository"
-	"github.com/your-org/atlas/backend/internal/repository/postgres"
 )
 
 type SearchService struct {
-	repo          *postgres.SearchRepository
+	repo          repository.SearchRepository
 	workspaceRepo repository.WorkspaceRepository
 	channelRepo   repository.ChannelRepository
 	roleRepo      repository.WorkspaceRoleRepository
@@ -17,7 +16,7 @@ type SearchService struct {
 }
 
 func NewSearchService(
-	repo *postgres.SearchRepository,
+	repo repository.SearchRepository,
 	workspaceRepo repository.WorkspaceRepository,
 	channelRepo repository.ChannelRepository,
 	roleRepo repository.WorkspaceRoleRepository,
@@ -44,15 +43,15 @@ type SearchParams struct {
 }
 
 type SearchResponse struct {
-	Results []*postgres.SearchResult `json:"results"`
-	Total   int                      `json:"total"`
-	Limit   int                      `json:"limit"`
-	Offset  int                      `json:"offset"`
+	Results []*repository.SearchResult `json:"results"`
+	Total   int                        `json:"total"`
+	Limit   int                        `json:"limit"`
+	Offset  int                        `json:"offset"`
 }
 
 func (s *SearchService) Search(ctx context.Context, actorUserID string, params SearchParams) (*SearchResponse, error) {
 	if params.Query == "" {
-		return &SearchResponse{Results: []*postgres.SearchResult{}, Total: 0}, nil
+		return &SearchResponse{Results: []*repository.SearchResult{}, Total: 0}, nil
 	}
 	if params.Limit <= 0 || params.Limit > 50 {
 		params.Limit = 20
@@ -72,7 +71,7 @@ func (s *SearchService) Search(ctx context.Context, actorUserID string, params S
 		}
 	}
 
-	results, total, err := s.repo.Search(ctx, postgres.SearchFilter{
+	results, total, err := s.repo.Search(ctx, repository.SearchFilter{
 		Query:       params.Query,
 		WorkspaceID: params.WorkspaceID,
 		ChannelID:   params.ChannelID,
@@ -87,7 +86,7 @@ func (s *SearchService) Search(ctx context.Context, actorUserID string, params S
 	}
 
 	if results == nil {
-		results = []*postgres.SearchResult{}
+		results = []*repository.SearchResult{}
 	}
 
 	return &SearchResponse{

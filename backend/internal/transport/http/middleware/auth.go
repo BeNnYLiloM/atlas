@@ -12,6 +12,7 @@ const (
 	AuthorizationHeader = "Authorization"
 	UserIDKey           = "userID"
 	UserEmailKey        = "userEmail"
+	SessionIDKey        = "sessionID"
 )
 
 // AuthMiddleware проверяет JWT токен
@@ -37,13 +38,34 @@ func AuthMiddleware(authService *service.AuthService) gin.HandlerFunc {
 
 		c.Set(UserIDKey, claims.UserID)
 		c.Set(UserEmailKey, claims.Email)
+		c.Set(SessionIDKey, claims.SessionID)
 		c.Next()
 	}
 }
 
-// GetUserID извлекает userID из контекста
+// GetUserID извлекает userID из контекста. Паникует только если middleware не был применён к маршруту.
 func GetUserID(c *gin.Context) string {
-	userID, _ := c.Get(UserIDKey)
-	return userID.(string)
+	userID, exists := c.Get(UserIDKey)
+	if !exists {
+		panic("GetUserID called on route without AuthMiddleware")
+	}
+	id, ok := userID.(string)
+	if !ok || id == "" {
+		panic("GetUserID: userID in context is not a valid string")
+	}
+	return id
+}
+
+// GetSessionID извлекает sessionID из контекста JWT claims.
+func GetSessionID(c *gin.Context) string {
+	sessionID, exists := c.Get(SessionIDKey)
+	if !exists {
+		return ""
+	}
+	id, ok := sessionID.(string)
+	if !ok {
+		return ""
+	}
+	return id
 }
 

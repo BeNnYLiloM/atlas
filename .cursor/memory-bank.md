@@ -1,5 +1,16 @@
 # Atlas — Memory Bank
 
+## Философия проекта
+
+**Это не MVP. Код пишется сразу в production-качество.**
+
+- Нет "сделаем потом", нет "для MVP сойдёт"
+- Каждое изменение — как будто это уже работает под реальными пользователями
+- Безопасность, надёжность, наблюдаемость — с первого коммита
+- Никаких memory leak, глобальных `log.Printf`, наивных реализаций
+
+---
+
 ## Что это за проект
 
 Корпоративный мессенджер (аналог Slack/Discord) с текстовыми и голосовыми каналами, тредами, задачами, реакциями, поиском, загрузкой файлов. Монорепо: `backend/` (Go) + `frontend/` (Vue 3).
@@ -12,6 +23,7 @@
 atlas/
 ├── backend/
 │   ├── cmd/server/main.go              # точка входа
+│   ├── cmd/debugrefresh/main.go        # УДАЛИТЬ — debug-скрипт, не нужен в репо
 │   ├── internal/
 │   │   ├── config/config.go            # конфиг из env
 │   │   ├── domain/                     # модели
@@ -19,241 +31,303 @@ atlas/
 │   │   ├── service/                    # бизнес-логика
 │   │   └── transport/
 │   │       ├── http/handler/           # Gin handlers
-│   │       ├── http/middleware/        # auth, cors
+│   │       ├── http/middleware/        # auth, cors, rate_limit
 │   │       ├── http/response/          # helpers
 │   │       └── ws/                     # WebSocket hub + client
-│   ├── migrations/                     # 9 SQL файлов
+│   ├── migrations/                     # 19 SQL файлов (000001–000019)
 │   ├── pkg/
 │   │   ├── database/postgres.go        # pgx pool
 │   │   └── storage/minio.go            # MinIO клиент
 │   └── go.mod
 ├── frontend/
 │   └── src/
-│       ├── api/                        # 10 axios-клиентов
+│       ├── api/
+│       │   ├── client.ts               # axios + interceptors (in-memory token, авто-refresh)
+│       │   ├── session.ts              # управление access/refresh токенами
+│       │   ├── auth.ts
+│       │   ├── users.ts                # searchByEmail, updateMe, uploadAvatar
+│       │   └── ...
 │       ├── components/
 │       │   ├── calls/                  # CallPanel
 │       │   ├── chat/                   # сообщения, треды, ввод
 │       │   ├── layout/                 # Sidebar, ChannelList
 │       │   ├── search/                 # SearchBar, SearchResults
-│       │   ├── settings/               # ThemeSwitcher, ShortcutsModal
+│       │   ├── settings/               # ThemeSwitcher (карточный UI), ShortcutsModal
 │       │   ├── tasks/                  # TaskCard, TaskCreationModal
 │       │   ├── ui/                     # Modal, Button, Input, Avatar
-│       │   └── workspace/              # InviteMemberModal
+│       │   └── workspace/              # InviteMemberModal, UserSettingsModal, WorkspaceSettingsModal
 │       ├── router/index.ts
-│       ├── stores/                     # 9 Pinia stores
+│       ├── stores/                     # Pinia stores
 │       ├── types/index.ts
-│       └── views/                      # 5 views
+│       └── views/                      # views
 └── deploy/
-    ├── docker-compose.yml
+    ├── docker-compose.yml              # dev
+    ├── docker-compose.coolify.yml      # prod (Coolify)
     └── configs/
         ├── livekit.yaml               # для Docker (redis: redis:6379)
-        └── livekit-native.yaml        # для нативного запуска (redis: localhost:6379)
+        └── livekit.coolify.yaml        # для прода
 ```
 
 ---
 
-## Backend — Доменные модели
+## Система авторизации (после рефакторинга e3f8c5d)
 
-### User (`domain/user.go`)
+### Архитектура токенов
+- **Access token** — JWT, TTL 15 минут, хранится in-memory (НЕ localStorage — уязвим к XSS)
+- **Refresh token** — случайные 32 байта → SHA-256 → в БД; отдаётся в httpOnly cookie
+- **Ротация сессий** — каждый refresh создаёт новую запись в `auth_sessions`, старая помечается `revoked_at` и `replaced_by_session_id`
+- **Обнаружение reuse-атаки** — если revoked-токен используется повторно, вся family сессий отзывается
+
+### JWT Claims
 ```go
-type UserStatus string // "online" | "away" | "offline"
+type Claims struct {
+    UserID    string `json:"user_id"`
+    Email     string `json:"email"`
+    SessionID string `json:"session_id"`  // позволяет инвалидировать конкретные токены
+    jwt.RegisteredClaims  // iss, aud, exp, iat
+}
+```
+- Проверяются `iss` (atlas), `aud` (atlas-web), `alg` (только HMAC — закрыта атака `alg: none`)
 
+### JWTConfig (актуальный)
+```go
+type JWTConfig struct {
+    Secret                string
+    AccessTokenTTLMinutes int    // env: JWT_ACCESS_TTL_MINUTES, default: 15
+    RefreshTokenTTLDays   int    // env: JWT_REFRESH_TTL_DAYS, default: 14
+    Issuer                string // env: JWT_ISSUER, default: "atlas"
+    Audience              string // env: JWT_AUDIENCE, default: "atlas-web"
+    RefreshCookieName     string // env: JWT_REFRESH_COOKIE_NAME
+    RefreshCookieDomain   string // env: JWT_REFRESH_COOKIE_DOMAIN
+    RefreshCookieSecure   bool   // env: JWT_REFRESH_COOKIE_SECURE (auto: production mode)
+}
+```
+
+### AuthService (сигнатуры после рефакторинга)
+```go
+func NewAuthService(userRepo, sessionRepo, jwtConfig) *AuthService
+func (s) Register(ctx, input UserCreate, meta AuthSessionMetadata) (*User, *TokenPair, string, error)
+func (s) Login(ctx, input UserLogin, meta AuthSessionMetadata) (*User, *TokenPair, string, error)
+func (s) Refresh(ctx, refreshToken string, meta AuthSessionMetadata) (*TokenPair, string, error)
+func (s) Logout(ctx, refreshToken string) error
+func (s) LogoutAll(ctx, userID string) error
+func (s) UpdateProfile(ctx, userID string, input UserUpdate) (*User, error)
+```
+
+### TokenPair (актуальный — без refresh_token!)
+```go
+type TokenPair struct {
+    AccessToken string `json:"access_token"`
+    ExpiresAt   int64  `json:"expires_at"`
+    // RefreshToken УБРАН — теперь только в httpOnly cookie
+}
+```
+
+### AuthSessionMetadata
+```go
+type AuthSessionMetadata struct {
+    UserAgent string
+    IPAddress string
+}
+```
+
+### Frontend — session.ts
+```typescript
+// Access token хранится в ref<string | null> (in-memory, не localStorage)
+// refreshSkewSeconds = 30 — упреждающее обновление за 30с до истечения
+// refreshPromise — дедупликация параллельных запросов refresh
+export function getAccessToken(): string | null
+export function applyAuthTokens(tokens: AuthTokens): void
+export async function refreshAccessToken(): Promise<string | null>
+export async function ensureAccessToken(): Promise<string | null>
+```
+
+### Frontend — api/client.ts
+```typescript
+// 401 interceptor:
+// 1. Не retry для /auth/login, /auth/register, /auth/refresh, /auth/logout
+// 2. При 401 → refreshAccessToken() → retry с новым токеном
+// 3. Если refresh не удался → clearAccessToken() → redirect /login
+// _retry флаг предотвращает бесконечные циклы
+```
+
+---
+
+## Доменные модели
+
+### User
+```go
 type User struct {
-    ID           string     `db:"id"`
-    Email        string     `db:"email"`
-    PasswordHash string     `db:"password_hash"`
-    DisplayName  string     `db:"display_name"`
-    AvatarURL    *string    `db:"avatar_url"`
-    Status       UserStatus `db:"status"`
-    LastSeen     *time.Time `db:"last_seen"`
-    CreatedAt    time.Time  `db:"created_at"`
+    ID           string
+    Email        string
+    PasswordHash string
+    DisplayName  string
+    AvatarURL    *string
+    Status       UserStatus  // "online" | "away" | "offline"
+    LastSeen     *time.Time
+    CreatedAt    time.Time
+}
+
+type UserUpdate struct {
+    DisplayName *string `json:"display_name" validate:"omitempty,min=2,max=100"`
+    AvatarURL   *string `json:"avatar_url"`
 }
 ```
 
-### Workspace (`domain/workspace.go`)
+### AuthSession (`domain/auth_session.go`)
 ```go
-type WorkspaceMember struct {
-    WorkspaceID string // роли: owner/admin/moderator/member/guest
-    UserID      string
-    Role        string
+type AuthSession struct {
+    ID                  string
+    FamilyID            string     // для группового отзыва при reuse-атаке
+    UserID              string
+    RefreshTokenHash    string     // SHA-256 от сырого токена
+    UserAgent           string
+    IPAddress           string
+    CreatedAt           time.Time
+    ExpiresAt           time.Time
+    LastUsedAt          *time.Time
+    RevokedAt           *time.Time
+    ReplacedBySessionID *string
 }
 ```
 
-### Channel (`domain/channel.go`)
+### Task
 ```go
-type Channel struct {
-    ID          string // тип: text/voice
-    WorkspaceID string
-    Name        string
-    Type        string  // "text" | "voice"
-    IsPrivate   bool
-}
-```
-
-### Message (`domain/message.go`)
-```go
-type Message struct {
-    ID                 string
-    ChannelID          string
-    UserID             string
-    Content            string
-    ParentID           *string  // для тредов
-    HasAttachments     bool
-    SearchVector       string
-    CreatedAt          time.Time
-    UpdatedAt          time.Time
-    // Computed fields
-    Author             *User
-    ThreadRepliesCount int
-    ThreadUnreadCount  int
-}
-```
-
-### Task (`domain/task.go`)
-```go
-type TaskStatus   string // "todo" | "in_progress" | "done" | "cancelled"
-type TaskPriority string // "low" | "medium" | "high" | "urgent"
-
 type Task struct {
     ID          string
-    MessageID   *string  // привязка к сообщению (killer-feature)
+    MessageID   *string  // killer-feature: привязка к сообщению
     WorkspaceID string
-    Title       string
-    Description *string
-    Status      TaskStatus
-    Priority    TaskPriority
-    AssigneeID  *string
-    ReporterID  *string
+    Title, Description, Status, Priority string
+    AssigneeID, ReporterID *string
     DueDate     *time.Time
-    Assignee    *User    // display only
-    Reporter    *User    // display only
-}
-```
-
-### Reaction (`domain/reaction.go`)
-```go
-type Reaction struct {
-    MessageID string
-    UserID    string
-    Emoji     string
-}
-type ReactionGroup struct {
-    Emoji   string
-    Count   int
-    UserIDs []string
-    Mine    bool  // поставил ли текущий пользователь
-}
-```
-
-### File (`domain/file.go`)
-```go
-type File struct {
-    ID           string
-    MessageID    *string
-    UserID       string
-    Filename     string
-    OriginalName string
-    MimeType     string
-    SizeBytes    int64
-    StoragePath  string
-    URL          string  // генерируется динамически (presigned)
+    Assignee, Reporter *User
 }
 ```
 
 ---
 
-## Backend — Конфиг (`internal/config/config.go`)
-
-```go
-type Config struct {
-    Server   ServerConfig
-    Database DatabaseConfig
-    Redis    RedisConfig
-    MinIO    MinIOConfig
-    LiveKit  LiveKitConfig
-    JWT      JWTConfig
-}
-
-type LiveKitConfig struct {
-    Host      string  // env: LIVEKIT_HOST (default: localhost:7880)
-    URL       string  // env: LIVEKIT_URL  (default: ws://localhost:7880)
-    APIKey    string  // env: LIVEKIT_API_KEY
-    APISecret string  // env: LIVEKIT_API_SECRET
-}
-
-type JWTConfig struct {
-    Secret     string // env: JWT_SECRET
-    ExpireHour int    // 24
-}
-```
-
----
-
-## Backend — HTTP Routes
-
-Все роуты под `/api/v1`. Защищённые (`authMiddleware`) идут через `protected` группу.
+## Backend — HTTP Routes (актуальные)
 
 ```
 POST   /api/v1/auth/register
 POST   /api/v1/auth/login
-GET    /api/v1/auth/me                    [auth]
-GET    /api/v1/users/search?email=        [auth]
+POST   /api/v1/auth/refresh
+POST   /api/v1/auth/logout
+POST   /api/v1/auth/logout-all           [auth]
+GET    /api/v1/auth/me                   [auth]
+PATCH  /api/v1/auth/me                   [auth] — UpdateMe (display_name, avatar_url)
+POST   /api/v1/auth/me/avatar            [auth] — UploadAvatar (multipart)
+GET    /api/v1/users/search?email=       [auth]
 
-POST   /api/v1/workspaces                 [auth]
-GET    /api/v1/workspaces                 [auth]
-GET    /api/v1/workspaces/:id             [auth]
-DELETE /api/v1/workspaces/:id             [auth]
-GET    /api/v1/workspaces/:id/members     [auth]
-POST   /api/v1/workspaces/:id/members     [auth]
-GET    /api/v1/workspaces/:id/channels    [auth]
+POST   /api/v1/workspaces                [auth]
+GET    /api/v1/workspaces                [auth]
+GET    /api/v1/workspaces/:id            [auth]
+DELETE /api/v1/workspaces/:id            [auth]
+GET    /api/v1/workspaces/:id/members    [auth]
+POST   /api/v1/workspaces/:id/members    [auth]
+GET    /api/v1/workspaces/:id/channels   [auth]
 
-POST   /api/v1/channels                   [auth]
-GET    /api/v1/channels/:id               [auth]
-PUT    /api/v1/channels/:id               [auth]
-DELETE /api/v1/channels/:id               [auth]
-POST   /api/v1/channels/:id/read          [auth]
-GET    /api/v1/channels/:id/messages      [auth]
+POST   /api/v1/channels                  [auth]
+GET    /api/v1/channels/:id              [auth]
+PUT    /api/v1/channels/:id              [auth]
+DELETE /api/v1/channels/:id              [auth]
+POST   /api/v1/channels/:id/read         [auth]
+GET    /api/v1/channels/:id/messages     [auth]
 
-POST   /api/v1/messages                   [auth]
-PUT    /api/v1/messages/:id               [auth]
-DELETE /api/v1/messages/:id               [auth]
-GET    /api/v1/messages/:id/thread        [auth]
-POST   /api/v1/messages/:id/thread/read   [auth]
+POST   /api/v1/messages                  [auth]
+PUT    /api/v1/messages/:id              [auth]
+DELETE /api/v1/messages/:id              [auth]
+GET    /api/v1/messages/:id/thread       [auth]
+POST   /api/v1/messages/:id/thread/read  [auth]
 GET    /api/v1/messages/:id/thread/unread [auth]
 
-POST   /api/v1/messages/:id/reactions     [auth]
+POST   /api/v1/messages/:id/reactions    [auth]
 DELETE /api/v1/messages/:id/reactions/:emoji [auth]
-GET    /api/v1/messages/:id/reactions     [auth]
+GET    /api/v1/messages/:id/reactions    [auth]
 
-POST   /api/v1/tasks                      [auth]
+POST   /api/v1/tasks                     [auth]
 GET    /api/v1/tasks?workspace_id=&status= [auth]
-PATCH  /api/v1/tasks/:id                  [auth]
-DELETE /api/v1/tasks/:id                  [auth]
+PATCH  /api/v1/tasks/:id                 [auth]
+DELETE /api/v1/tasks/:id                 [auth]
 
-POST   /api/v1/calls/join                 [auth]
+POST   /api/v1/calls/join                [auth]
 
-POST   /api/v1/files/upload               [auth, если MinIO доступен]
-GET    /api/v1/files/:id                  [auth, если MinIO доступен]
-DELETE /api/v1/files/:id                  [auth, если MinIO доступен]
+POST   /api/v1/files/upload              [auth]
+GET    /api/v1/files/:id                 [auth]
+DELETE /api/v1/files/:id                 [auth]
 
-GET    /api/v1/search?q=&workspace_id=    [auth]
+GET    /api/v1/search?q=&workspace_id=   [auth]
 
-GET    /ws?token=                         # WebSocket (не в /api/v1)
+GET    /ws                               # WebSocket (Bearer в query ?token= или header)
 GET    /health
 ```
 
-### Важно: извлечение userID в handlers
+### Важно: извлечение userID
 ```go
-// ПРАВИЛЬНО (все handlers):
-userID := middleware.GetUserID(c)
-
-// НЕПРАВИЛЬНО (исторически было, уже исправлено):
-userID := c.GetString("user_id")  // ключ "userID", не "user_id"!
+userID := middleware.GetUserID(c)  // ПРАВИЛЬНО
+// c.GetString("user_id") — НЕПРАВИЛЬНО (исторический баг, исправлен)
 ```
 
 ---
 
-## Backend — WebSocket
+## Middleware
+
+### CORS
+```go
+// allowlist-based, динамический origin, Vary: Origin
+// Access-Control-Allow-Credentials: true (нужно для httpOnly cookie)
+// Настраивается через CORS_ALLOWED_ORIGINS env (CSV)
+CORS(cfg.Server.AllowedOrigins)
+```
+
+### Rate Limiter
+```go
+// ВНИМАНИЕ: текущая реализация в middleware/rate_limit.go имеет MEMORY LEAK
+// buckets никогда не очищаются — нужно заменить на golang.org/x/time/rate
+// или добавить периодический cleanup
+NewRateLimiter(10, time.Minute)  // login: 10 req/min
+NewRateLimiter(5, time.Minute)   // register: 5 req/min
+```
+
+### AuthMiddleware
+```go
+// Bearer token из Authorization header
+// Проверяет ValidateToken → Claims → записывает userID в gin.Context
+userID := middleware.GetUserID(c)
+```
+
+---
+
+## Права доступа (service/access.go)
+
+```go
+// Централизованная проверка — используется в channel, message, task сервисах
+func ensureWorkspaceMember(ctx, workspaceRepo, workspaceID, userID) (*WorkspaceMember, error)
+func getAccessibleChannel(ctx, channelRepo, workspaceRepo, roleRepo, permRepo, channelID, userID) (*Channel, *WorkspaceMember, error)
+// Логика: membership → роль (owner/admin проходят без доп. проверок) → ChannelPermission для приватных
+```
+
+---
+
+## Архитектурные правила (production-quality)
+
+### Go backend
+- Dependency injection через конструкторы, никаких глобальных переменных
+- Logger передаётся через DI, не `log.Printf` в сервисах
+- Сервисы не знают о HTTP/cookie — это слой transport
+- `fileService` в `AuthHandler` — ТЕХНИЧЕСКИЙ ДОЛГ, нужно вынести в отдельный `ProfileHandler` или `UserHandler`
+- Cookie-getters (`RefreshCookieName()` и др.) в `AuthService` — ТЕХНИЧЕСКИЙ ДОЛГ, handler должен читать cfg напрямую
+- Swagger-аннотации были удалены — если используется swaggo, нужно восстановить
+- `cmd/debugrefresh/` — УДАЛИТЬ
+
+### Frontend
+- `UserUpdate` interface использует `snake_case` (для прямого JSON-маппинга) — технический долг, лучше `camelCase` + маппинг при отправке
+- `extractApiError` в `users.ts` — нужно вынести в `api/utils.ts` (используется во всех api-модулях)
+- Токены — in-memory only, никогда localStorage
+
+---
+
+## WebSocket
 
 ### Формат сообщений
 ```json
@@ -268,7 +342,7 @@ userID := c.GetString("user_id")  // ключ "userID", не "user_id"!
 {"type": "typing", "payload": {"user_id": "uuid", "channel_id": "uuid", "typing": true}}
 ```
 
-### Все WS события (тип → обработчик в frontend)
+### Все WS события
 | Тип | Когда |
 |---|---|
 | `message` | новое сообщение |
@@ -287,131 +361,33 @@ userID := c.GetString("user_id")  // ключ "userID", не "user_id"!
 | `reaction_removed` | убрана реакция |
 | `read_state_update` | прочитано |
 
-### Hub — структуры
-```go
-type Hub struct {
-    workspaces map[string]map[string]*Client  // workspaceID → clientID → Client
-    channels   map[string]map[string]*Client  // channelID → clientID → Client
-    users      map[string][]*Client           // userID → []Client (мультитаб)
-    mu         sync.RWMutex
-}
-```
-
----
-
-## Backend — Сервисы: ключевые особенности
-
-### AuthService
-- bcrypt для паролей
-- JWT HS256, access token 24h
-- `GetUserByID` используется в `CallsHandler` для получения DisplayName
-
-### WorkspaceService
-- При создании workspace автоматически создаётся канал "general"
-- `AddMember` — только owner/admin могут добавлять
-
-### MessageService
-- Проверяет членство пользователя в канале перед созданием
-- Загружает `Author` и `ThreadRepliesCount` для каждого сообщения
-- Update/Delete — только автор (или модератор+ для Delete)
-
-### ReactionService
-```go
-// Использует интерфейс для избежания циклического импорта
-type ReactionBroadcaster interface {
-    BroadcastToWorkspace(workspaceID, event string, data interface{}, excludeUserID string)
-}
-```
-
-### LiveKitService
-```go
-// Стабильное имя комнаты — все входят в одну комнату
-func (s *LiveKitService) CreateRoomName(channelID string) string {
-    return fmt.Sprintf("channel-%s", channelID)  // без UUID!
-}
-// URL берётся из конфига (не строится с wss://)
-URL: s.cfg.URL  // ws://localhost:7880 для dev
-```
-
 ---
 
 ## Frontend — Stores
 
 ### `auth` store
 ```typescript
-// Ключи в localStorage:
-// "atlas_token" — JWT токен
-// Redirect на /login при 401 (в axios interceptor)
+// user: ref<User | null>
+// updateProfile(data: UserUpdate): Promise<User>  — обновляет user реактивно
+// uploadAvatar(file: File): Promise<User>          — обновляет user реактивно
+// logout() — async, ждёт API
+// logoutAll() — завершает все сессии
 ```
 
-### `calls` store (критически важный)
+### `calls` store
 ```typescript
 // SDK: livekit-client@1.15.13 (v1, совместим с сервером v1.9.x)
 // НЕ использовать v2 SDK — сервер v1.9.11 не поддерживает /rtc/v2
-
-// Имена методов в v1 SDK:
 // room.participants (Map) — не remoteParticipants!
-// p.name || p.identity — имя участника
-
 // Аудио треки ТРЕБУЮТ attach к DOM:
 const el = track.attach()
 getAudioContainer().appendChild(el)
-
-// Discord-логика:
-toggleVoiceChannel(channelId) // войти или выйти
-isInChannel(channelId): bool  // проверка текущего канала
 ```
 
 ### `websocket` store
 ```typescript
 // Reconnect: exponential backoff, max 5 попыток
-// Подписка на workspace отправляется при connect
 // wsStore.subscribeToWorkspace(workspaceId) — вызывается из AppView при смене workspace
-```
-
-### `channels` store
-```typescript
-// typingUsers: Record<channelId, Set<userId>>
-setUserTyping(channelId, userId, isTyping)
-getTypingUsers(channelId): string[]
-```
-
-### `workspace` store
-```typescript
-// presenceMap: Record<userId, status>
-// membersMap: Record<workspaceId, WorkspaceMember[]>
-setPresence(userId, status)
-getPresence(userId): string
-addMember / removeMember / updateMemberRole
-```
-
----
-
-## Frontend — Компоненты: что где
-
-### Голосовые каналы
-- `ChannelList.vue` — клик по voice → `callsStore.toggleVoiceChannel(id)`
-- `CallPanel.vue` — встроен в `Sidebar.vue` (не floating!), показывает имя канала + mute + выйти
-- Участники канала отображаются прямо под каналом в сайдбаре
-
-### Сообщения
-- `MessageInput.vue` — отправка по Enter (Shift+Enter = перенос), drag&drop файлов
-- `MessageItem.vue` — hover → кнопки действий (edit/delete/react/create task)
-- `ReactionBar.vue` — QUICK_EMOJIS = 10 эмодзи, toggle реакций
-- `TypingIndicator.vue` — фильтрует self из списка typing users
-
-### Layout
-- `AppView.vue` — root для авт. пользователей, инициализирует WS, следит за workspace
-- Тема (dark/light/high-contrast) через `data-theme` атрибут на `<html>`
-
----
-
-## Frontend — API клиент
-
-```typescript
-// baseURL: http://localhost:8080/api/v1
-// Токен: "atlas_token" из localStorage → "Bearer {token}"
-// 401 → router.push('/login') + localStorage.removeItem('atlas_token')
 ```
 
 ---
@@ -420,18 +396,19 @@ addMember / removeMember / updateMemberRole
 
 | Файл | Ключевое |
 |---|---|
-| `001_init.sql` | users, workspaces, workspace_members, channels, messages |
-| `002_channel_members.sql` | channel_members + 2 триггера для автодобавления |
-| `003_thread_read_state.sql` | channel_members.thread_last_reads JSONB |
-| `004_user_presence.sql` | users.status, users.last_seen |
-| `005_files.sql` | files, messages.has_attachments |
-| `006_search.sql` | messages.search_vector, GIN index, trigger (russian dictionary) |
-| `007_reactions.sql` | message_reactions, UNIQUE(message_id, user_id, emoji) |
-| `008_tasks.sql` | tasks (с message_id FK для killer-feature) |
+| `000001_init.sql` | users, workspaces, workspace_members, channels, messages |
+| `000002_channel_members.sql` | channel_members + 2 триггера |
+| `000003_thread_read_state.sql` | channel_members.thread_last_reads JSONB |
+| `000004_user_presence.sql` | users.status, users.last_seen |
+| `000005_files.sql` | files, messages.has_attachments |
+| `000006_search.sql` | messages.search_vector, GIN index, trigger (russian) |
+| `000007_reactions.sql` | message_reactions, UNIQUE(message_id, user_id, emoji) |
+| `000008_tasks.sql` | tasks (с message_id FK) |
+| `000019_auth_sessions.sql` | auth_sessions (id, family_id, user_id, refresh_token_hash, ...) |
 
-### Применение новых миграций (PowerShell):
+### Применение миграций (PowerShell):
 ```powershell
-# НЕ использовать < для pipe в PowerShell!
+# НЕ использовать < в PowerShell!
 Get-Content backend/migrations/00X_name.sql | docker exec -i atlas-postgres psql -U atlas -d atlas
 ```
 
@@ -440,113 +417,19 @@ Get-Content backend/migrations/00X_name.sql | docker exec -i atlas-postgres psql
 ## Docker Compose
 
 ```yaml
-# Файл: deploy/docker-compose.yml
+# dev: deploy/docker-compose.yml
 services:
-  postgres:   # порт 5433:5432 (!) — не стандартный 5432
-  redis:      # порт 6379:6379
-  minio:      # порт 9000 (API), 9001 (console)
-  livekit:    # порт 7880 (HTTP/WS), 7881 (TCP RTC), 7882/udp
+  postgres:   # порт 5433:5432 (!) — не стандартный
+  redis:      # 6379:6379
+  minio:      # 9000 (API), 9001 (console)
+  livekit:    # 7880 (HTTP/WS), 7881 (TCP RTC), 7882/udp
 ```
-
-### Запуск всего:
-```powershell
-cd deploy
-docker-compose up -d
-```
-
-### Порты PostgreSQL
-- В Docker: `5433:5432` (внешний 5433 → внутренний 5432)
-- Строка подключения backend: `DB_HOST=localhost DB_PORT=5433`
-
----
-
-## LiveKit — Конфигурация
-
-### Для локальной разработки (deploy/configs/livekit.yaml)
-```yaml
-port: 7880
-rtc:
-  tcp_port: 7881
-  node_ip: 127.0.0.1     # браузер подключается через localhost
-  port_range_start: 50000
-  port_range_end: 60000
-redis:
-  address: redis:6379    # имя сервиса в Docker сети
-keys:
-  devkey: secret_replace_in_production_min_32_chars!!
-```
-
-### Для прода
-- Заменить `node_ip` на публичный IP сервера
-- Или `use_external_ip: true`
-- Сгенерировать длинный секрет: `openssl rand -hex 32`
-
-### Совместимость версий (ВАЖНО!)
-- Сервер: `livekit/livekit-server:v1.9.11`
-- SDK: `livekit-client@1.15.13` (v1.x — НЕ v2!)
-- SDK v2 пробует `/rtc/v2` → 404 → retry → работает, но с ошибками в консоли
-
----
-
-## Запуск для разработки
-
-```powershell
-# 1. Docker сервисы
-cd deploy
-docker-compose up -d
-
-# 2. Backend
-cd backend
-go run ./cmd/server/...
-# Слушает: http://localhost:8080
-
-# 3. Frontend
-cd frontend
-npm run dev
-# Слушает: http://localhost:5173
-```
-
----
-
-## Известные проблемы и решения
-
-### Docker Desktop зависает при старте LiveKit
-- Перезапустить Docker Desktop
-- Убедиться что порт 7880 свободен перед `docker-compose up`
-- ```powershell
-  $pids = (Get-NetTCPConnection -LocalPort 7880 -ErrorAction SilentlyContinue).OwningProcess
-  $pids | ForEach-Object { Stop-Process -Id $_ -Force }
-  ```
-
-### Порт 8080 занят
-```powershell
-$pids = (Get-NetTCPConnection -LocalPort 8080 -ErrorAction SilentlyContinue).OwningProcess | Where-Object { $_ -ne 0 -and $_ -ne 4 } | Select-Object -Unique
-$pids | ForEach-Object { Stop-Process -Id $_ -Force }
-```
-
-### PowerShell pipe вместо `<`
-```powershell
-# НЕ работает в PowerShell:
-psql < file.sql
-
-# Работает:
-Get-Content file.sql | docker exec -i atlas-postgres psql -U atlas -d atlas
-```
-
-### Cyclic import в Go (service ↔ ws)
-- `ReactionService` использует интерфейс `ReactionBroadcaster` вместо `*ws.Hub`
-- Паттерн для всех новых сервисов, которым нужен broadcast
-
-### Нет звука в голосовых каналах
-- LiveKit v1 требует явного attach треков к DOM
-- Аудио элементы помещаются в скрытый `<div id="livekit-audio-container">`
-- Attach при `TrackSubscribed` + при входе в активную комнату (`room.participants`)
 
 ---
 
 ## Зависимости
 
-### Backend (ключевые)
+### Backend
 ```
 github.com/gin-gonic/gin          v1.9.1
 github.com/golang-jwt/jwt/v5      v5.2.0
@@ -558,7 +441,7 @@ github.com/livekit/protocol       v1.44.0
 github.com/minio/minio-go/v7      v7.0.98
 ```
 
-### Frontend (ключевые)
+### Frontend
 ```
 vue                  ^3.4.21
 pinia                ^2.1.7
@@ -573,23 +456,38 @@ vite                 ^5.2.0
 
 ---
 
-## Горячие клавиши (ShortcutsModal)
+## Известные технические долги (приоритет исправления)
+
+| Проблема | Файл | Приоритет |
+|---|---|---|
+| Rate limiter — memory leak (buckets не чистятся) | `middleware/rate_limit.go` | Высокий |
+| `fileService` в `AuthHandler` — нарушение SRP | `handler/auth.go` | Средний |
+| Cookie-getters в `AuthService` — утечка в транспорт | `service/auth.go` | Средний |
+| `extractApiError` дублируется | `api/users.ts` | Средний |
+| `UserUpdate` snake_case в TypeScript | `types/index.ts` | Низкий |
+| `cmd/debugrefresh/` — удалить | `cmd/debugrefresh/` | Низкий |
+| Swagger-аннотации удалены | `handler/auth.go` | Низкий |
+
+---
+
+## Горячие клавиши
 
 | Клавиша | Действие |
 |---|---|
 | `Ctrl+K` | Открыть поиск |
 | `Ctrl+/` | Показать горячие клавиши |
-| `Alt+↑/↓` | Переключение текстовых каналов |
-| `Shift+Enter` | Новая строка в сообщении |
+| `Alt+↑/↓` | Переключение каналов |
+| `Shift+Enter` | Новая строка |
 | `Esc` | Закрыть модальное окно |
 
 ---
 
-## Темы
+## PowerShell — частые проблемы
 
-Файлы в `frontend/src/assets/themes/`:
-- `dark.css` — тёмная (по умолчанию)
-- `light.css` — светлая
-- `high-contrast.css` — высокий контраст
+```powershell
+# pipe вместо <:
+Get-Content file.sql | docker exec -i atlas-postgres psql -U atlas -d atlas
 
-Применяются через `data-theme` на `<html>`, сохраняются в localStorage `atlas_theme`.
+# Убить процесс на порту:
+(Get-NetTCPConnection -LocalPort 8080 -EA SilentlyContinue).OwningProcess | Where-Object { $_ -ne 0 -and $_ -ne 4 } | Select-Object -Unique | ForEach-Object { Stop-Process -Id $_ -Force }
+```

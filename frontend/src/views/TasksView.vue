@@ -31,12 +31,12 @@ onMounted(loadTasks)
 <template>
   <div class="flex flex-col h-full">
     <!-- Header -->
-    <div class="flex items-center justify-between px-6 py-4 border-b border-dark-800 flex-shrink-0">
-      <h1 class="text-lg font-semibold text-dark-100">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-subtle flex-shrink-0">
+      <h1 class="text-lg font-semibold text-primary">
         Задачи
       </h1>
       <button
-        class="flex items-center gap-2 px-3 py-1.5 bg-atlas-600 hover:bg-atlas-500 text-white rounded-lg text-sm font-medium transition-colors"
+        class="btn btn-primary"
         @click="showCreateModal = true"
       >
         <svg
@@ -61,7 +61,7 @@ onMounted(loadTasks)
       v-if="loading"
       class="flex-1 flex items-center justify-center"
     >
-      <div class="w-6 h-6 border-2 border-atlas-500 border-t-transparent rounded-full animate-spin" />
+      <div class="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
     </div>
 
     <!-- Kanban board -->
@@ -76,15 +76,15 @@ onMounted(loadTasks)
           class="w-72 flex flex-col"
         >
           <!-- Column header -->
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="text-sm font-semibold text-dark-300">
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-sm font-semibold text-secondary uppercase tracking-wide text-xs">
               {{ TASK_STATUS_LABELS[status] }}
             </h2>
-            <span class="text-xs text-dark-500 bg-dark-800 px-2 py-0.5 rounded-full">{{ getColumnTasks(status).length }}</span>
+            <span class="text-xs text-muted bg-elevated border border-default px-2 py-0.5 rounded-full">{{ getColumnTasks(status).length }}</span>
           </div>
 
           <!-- Cards -->
-          <div class="flex-1 space-y-2 min-h-16 bg-dark-900/50 rounded-xl p-2">
+          <div class="flex-1 space-y-2 min-h-16 rounded-xl p-2 border border-default bg-surface">
             <TaskCard
               v-for="task in getColumnTasks(status)"
               :key="task.id"
@@ -96,7 +96,7 @@ onMounted(loadTasks)
             <!-- Empty state -->
             <div
               v-if="getColumnTasks(status).length === 0"
-              class="text-center py-8 text-xs text-dark-600"
+              class="text-center py-8 text-xs text-faint"
             >
               Нет задач
             </div>

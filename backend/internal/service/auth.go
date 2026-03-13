@@ -222,6 +222,142 @@ func (s *AuthService) GetUserByID(ctx context.Context, userID string) (*domain.U
 	return user, nil
 }
 
+// UpdateProfile обновляет профиль текущего пользователя.
+func (s *AuthService) UpdateProfile(ctx context.Context, userID string, input domain.UserUpdate) (*domain.User, error) {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, ErrUserNotFound
+	}
+
+	if input.DisplayName != nil {
+		displayName := strings.TrimSpace(*input.DisplayName)
+		if len(displayName) < 2 || len(displayName) > 100 {
+			return nil, ErrInvalidProfile
+		}
+		user.DisplayName = displayName
+	}
+
+	if input.AvatarURL != nil {
+		avatarURL := strings.TrimSpace(*input.AvatarURL)
+		if avatarURL == "" {
+			user.AvatarURL = nil
+		} else {
+			user.AvatarURL = &avatarURL
+		}
+	}
+
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+// ChangePassword меняет пароль пользователя после проверки текущего.
+func (s *AuthService) ChangePassword(ctx context.Context, userID string, input domain.UserChangePassword) error {
+	if strings.TrimSpace(input.CurrentPassword) == "" || strings.TrimSpace(input.NewPassword) == "" {
+		return ErrInvalidProfile
+	}
+	if len(input.NewPassword) < 8 {
+		return ErrWeakPassword
+	}
+
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return ErrUserNotFound
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.CurrentPassword)); err != nil {
+		return ErrInvalidCredentials
+	}
+
+	newHash, err := bcrypt.GenerateFromPassword([]byte(input.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	if err := s.userRepo.UpdatePassword(ctx, userID, string(newHash)); err != nil {
+		return err
+	}
+
+	// Отзываем все сессии кроме текущей не делаем — пользователь сам решает.
+	// Но логируем факт смены пароля.
+	log.Printf("[AUTH] password changed for user=%s", userID)
+	return nil
+}
+
+// UpdateStatus обновляет статус и кастомный статус пользователя.
+func (s *AuthService) UpdateStatus(ctx context.Context, userID string, status domain.UserStatus, customStatus *string) (*domain.User, error) {
+	validStatuses := map[domain.UserStatus]bool{
+		domain.UserStatusOnline:  true,
+		domain.UserStatusAway:    true,
+		domain.UserStatusDND:     true,
+		domain.UserStatusOffline: true,
+	}
+	if !validStatuses[status] {
+		return nil, ErrInvalidProfile
+	}
+
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, ErrUserNotFound
+	}
+
+	user.Status = status
+	if customStatus != nil {
+		trimmed := strings.TrimSpace(*customStatus)
+		if len(trimmed) > 100 {
+			return nil, ErrInvalidProfile
+		}
+		if trimmed == "" {
+			user.CustomStatus = nil
+		} else {
+			user.CustomStatus = &trimmed
+		}
+	}
+
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+// DeleteAccount удаляет аккаунт пользователя после проверки пароля.
+func (s *AuthService) DeleteAccount(ctx context.Context, userID, password string) error {
+	if strings.TrimSpace(password) == "" {
+		return ErrInvalidCredentials
+	}
+
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return ErrUserNotFound
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		return ErrInvalidCredentials
+	}
+
+	// Сначала отзываем все сессии
+	if err := s.sessionRepo.RevokeAllByUserID(ctx, userID); err != nil {
+		log.Printf("[AUTH] failed to revoke sessions before account deletion user=%s: %v", userID, err)
+	}
+
+	return s.userRepo.DeleteByID(ctx, userID)
+}
+
 // GetUserByEmail возвращает пользователя по email.
 func (s *AuthService) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
 	user, err := s.userRepo.GetByEmail(ctx, email)
@@ -299,6 +435,16 @@ func (s *AuthService) generateSessionArtifacts(user *domain.User, familyID strin
 		AccessToken: accessToken,
 		ExpiresAt:   accessExpiry.Unix(),
 	}, refreshToken, session, nil
+}
+
+func (s *AuthService) ListActiveSessions(ctx context.Context, userID string) ([]*domain.AuthSession, error) {
+	return s.sessionRepo.ListActiveByUserID(ctx, userID)
+}
+
+// RevokeSession отзывает конкретную сессию пользователя.
+// Возвращает false если сессия не найдена или принадлежит другому пользователю.
+func (s *AuthService) RevokeSession(ctx context.Context, sessionID, userID string) (bool, error) {
+	return s.sessionRepo.RevokeByIDForUser(ctx, sessionID, userID)
 }
 
 func (s *AuthService) generateAccessToken(user *domain.User, sessionID string, expiresAt, issuedAt time.Time) (string, error) {

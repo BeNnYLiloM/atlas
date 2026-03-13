@@ -6,6 +6,8 @@ var (
 	ErrUserNotFound       = errors.New("user not found")
 	ErrUserAlreadyExists  = errors.New("user already exists")
 	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrInvalidProfile     = errors.New("invalid profile data")
+	ErrWeakPassword       = errors.New("password must be at least 8 characters")
 	ErrUnauthorized       = errors.New("unauthorized")
 	ErrForbidden          = errors.New("forbidden")
 	ErrWorkspaceNotFound  = errors.New("workspace not found")

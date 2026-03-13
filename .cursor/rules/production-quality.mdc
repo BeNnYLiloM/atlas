@@ -1,0 +1,61 @@
+---
+description: Production-quality standards for Atlas project — no MVP shortcuts
+alwaysApply: true
+---
+
+# Atlas — Production Quality Standard
+
+This is NOT an MVP. Every change must be production-ready from the first commit.
+
+## Core Principle
+
+No "we'll fix this later". If you write something, it must be correct, secure, and maintainable right now.
+
+## Go Backend
+
+- **No global `log.Printf` in services** — use injected logger (zerolog/zap/slog)
+- **No memory leaks** — maps that grow unboundedly must have cleanup (e.g., rate limiter buckets)
+- **Strict layer separation**: services must not know about HTTP, cookies, or transport details
+- **Dependency injection** via constructors — no package-level globals
+- **Errors**: always wrap with `fmt.Errorf("context: %w", err)`, never swallow silently
+- **Tests**: use interfaces + mocks, not real DB. Table-driven tests where applicable
+
+```go
+// ❌ BAD — service knowing about cookie
+func (s *AuthService) RefreshCookieName() string { return s.jwtConfig.RefreshCookieName }
+
+// ✅ GOOD — handler reads config directly
+func (h *AuthHandler) setRefreshCookie(c *gin.Context, token string) {
+    http.SetCookie(c.Writer, &http.Cookie{Name: h.jwtConfig.RefreshCookieName, ...})
+}
+```
+
+## Frontend (Vue 3 + TypeScript)
+
+- **No `localStorage` for tokens** — access token in memory only (see `api/session.ts`)
+- **TypeScript strict** — no `any`, no `as unknown as X` without justification
+- **Shared utilities** — don't duplicate helper functions across api modules; put in `api/utils.ts`
+- **camelCase** in TypeScript interfaces, map to snake_case when sending to API
+
+```typescript
+// ❌ BAD — snake_case in TS interface
+interface UserUpdate { display_name?: string }
+
+// ✅ GOOD — camelCase + mapping
+interface UserUpdate { displayName?: string }
+const payload = { display_name: data.displayName }
+```
+
+## Security (non-negotiable)
+
+- Refresh tokens: httpOnly cookie only, never in response body
+- Access tokens: in-memory only, TTL ≤ 15 min
+- JWT: always validate `alg` (HMAC only), `iss`, `aud`
+- CORS: allowlist only, never `*` with credentials
+- Rate limiting: must use proper sliding window, not naive map (memory leak)
+
+## Architecture
+
+- **SRP in handlers**: `AuthHandler` handles auth only. File upload → separate handler or service
+- **No debug scripts in `cmd/`** — integration tests go in `_test.go` files
+- **Swagger annotations** — keep them if `swaggo` is used; don't silently delete

@@ -86,18 +86,7 @@ func (r *AuthSessionRepo) Rotate(ctx context.Context, currentSessionID string, n
 	}
 	defer tx.Rollback(ctx)
 
-	cmd, err := tx.Exec(ctx, `
-		UPDATE auth_sessions
-		SET revoked_at = $2, replaced_by_session_id = $3
-		WHERE id = $1 AND revoked_at IS NULL
-	`, currentSessionID, nextSession.CreatedAt, nextSession.ID)
-	if err != nil {
-		return fmt.Errorf("AuthSessionRepo.Rotate revoke current: %w", err)
-	}
-	if cmd.RowsAffected() != 1 {
-		return pgx.ErrNoRows
-	}
-
+	// Сначала создаем новую сессию, чтобы foreign key на replaced_by_session_id был валиден.
 	_, err = tx.Exec(ctx, `
 		INSERT INTO auth_sessions (
 			id, family_id, user_id, refresh_token_hash, user_agent, ip_address,
@@ -120,6 +109,18 @@ func (r *AuthSessionRepo) Rotate(ctx context.Context, currentSessionID string, n
 		return fmt.Errorf("AuthSessionRepo.Rotate insert next: %w", err)
 	}
 
+	cmd, err := tx.Exec(ctx, `
+		UPDATE auth_sessions
+		SET revoked_at = $2, replaced_by_session_id = $3
+		WHERE id = $1 AND revoked_at IS NULL
+	`, currentSessionID, nextSession.CreatedAt, nextSession.ID)
+	if err != nil {
+		return fmt.Errorf("AuthSessionRepo.Rotate revoke current: %w", err)
+	}
+	if cmd.RowsAffected() != 1 {
+		return pgx.ErrNoRows
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("AuthSessionRepo.Rotate commit: %w", err)
 	}
@@ -140,6 +141,18 @@ func (r *AuthSessionRepo) RevokeByID(ctx context.Context, sessionID string) erro
 	return nil
 }
 
+func (r *AuthSessionRepo) RevokeByIDForUser(ctx context.Context, sessionID, userID string) (bool, error) {
+	cmd, err := r.db.Exec(ctx, `
+		UPDATE auth_sessions
+		SET revoked_at = COALESCE(revoked_at, $3)
+		WHERE id = $1 AND user_id = $2 AND revoked_at IS NULL
+	`, sessionID, userID, time.Now().UTC())
+	if err != nil {
+		return false, fmt.Errorf("AuthSessionRepo.RevokeByIDForUser: %w", err)
+	}
+	return cmd.RowsAffected() == 1, nil
+}
+
 func (r *AuthSessionRepo) RevokeFamily(ctx context.Context, familyID string) error {
 	_, err := r.db.Exec(ctx, `
 		UPDATE auth_sessions
@@ -151,6 +164,36 @@ func (r *AuthSessionRepo) RevokeFamily(ctx context.Context, familyID string) err
 	}
 
 	return nil
+}
+
+func (r *AuthSessionRepo) ListActiveByUserID(ctx context.Context, userID string) ([]*domain.AuthSession, error) {
+	query := `
+		SELECT id, family_id, user_id, refresh_token_hash, user_agent, ip_address,
+		       created_at, expires_at, last_used_at, revoked_at, replaced_by_session_id
+		FROM auth_sessions
+		WHERE user_id = $1
+		  AND revoked_at IS NULL
+		  AND expires_at > NOW()
+		ORDER BY last_used_at DESC
+	`
+	rows, err := r.db.Query(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("AuthSessionRepo.ListActiveByUserID: %w", err)
+	}
+	defer rows.Close()
+
+	var sessions []*domain.AuthSession
+	for rows.Next() {
+		s := &domain.AuthSession{}
+		if err := rows.Scan(
+			&s.ID, &s.FamilyID, &s.UserID, &s.RefreshTokenHash, &s.UserAgent, &s.IPAddress,
+			&s.CreatedAt, &s.ExpiresAt, &s.LastUsedAt, &s.RevokedAt, &s.ReplacedBySessionID,
+		); err != nil {
+			return nil, fmt.Errorf("AuthSessionRepo.ListActiveByUserID scan: %w", err)
+		}
+		sessions = append(sessions, s)
+	}
+	return sessions, rows.Err()
 }
 
 func (r *AuthSessionRepo) RevokeAllByUserID(ctx context.Context, userID string) error {

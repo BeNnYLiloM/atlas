@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore, useWorkspaceStore, useChannelsStore } from '@/stores'
 import { Avatar, Modal, Input, Button } from '@/components/ui'
@@ -8,6 +8,8 @@ import ChannelList from './ChannelList.vue'
 import CallPanel from '@/components/calls/CallPanel.vue'
 import WorkspaceSettingsModal from '@/components/workspace/WorkspaceSettingsModal.vue'
 import UserSettingsModal from '@/components/workspace/UserSettingsModal.vue'
+import { authApi } from '@/api/auth'
+import type { UserStatusValue } from '@/api/auth'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -66,31 +68,60 @@ async function createChannel() {
   }
 }
 
-function logout() {
-  authStore.logout()
-  router.push('/login')
+// Status context menu
+const showStatusMenu = ref(false)
+const statusMenuAnchorRef = ref<HTMLElement | null>(null)
+
+const STATUS_OPTIONS: { value: UserStatusValue; label: string; color: string }[] = [
+  { value: 'online',  label: 'В сети',         color: '#3fb950' },
+  { value: 'away',    label: 'Отошёл',          color: '#d29922' },
+  { value: 'dnd',     label: 'Не беспокоить',   color: '#f85149' },
+  { value: 'offline', label: 'Невидимка',       color: '#6e7681' },
+]
+
+const currentStatusColor = computed(() => {
+  const s = authStore.user?.status ?? 'offline'
+  return STATUS_OPTIONS.find(o => o.value === s)?.color ?? '#6e7681'
+})
+
+async function setStatus(status: UserStatusValue) {
+  showStatusMenu.value = false
+  try {
+    const updated = await authApi.updateStatus(status, authStore.user?.custom_status ?? null)
+    authStore.user = updated
+  } catch { /* тихо */ }
+}
+
+function closeStatusMenu(e: MouseEvent) {
+  if (statusMenuAnchorRef.value && !statusMenuAnchorRef.value.contains(e.target as Node)) {
+    showStatusMenu.value = false
+  }
+}
+
+onMounted(() => document.addEventListener('mousedown', closeStatusMenu))
+onBeforeUnmount(() => document.removeEventListener('mousedown', closeStatusMenu))
+
+async function logout() {
+  await authStore.logout()
+  await router.push('/login')
 }
 </script>
 
 <template>
-  <aside class="w-64 flex flex-col bg-dark-900 border-r border-dark-800">
-    <!-- Workspace switcher -->
+  <aside class="w-64 flex flex-col bg-surface border-r border-subtle">
     <WorkspaceSwitcher />
 
-    <!-- Channels -->
     <div class="flex-1 overflow-y-auto">
       <ChannelList @create-channel="showCreateChannel = true" />
     </div>
 
-    <!-- Панель активного голосового канала -->
     <CallPanel />
 
-    <!-- Navigation -->
-    <div class="p-3 border-t border-dark-800 space-y-1">
+    <div class="p-3 border-t border-subtle space-y-1">
       <RouterLink
         to="/tasks"
-        class="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm text-dark-400 hover:text-dark-100 hover:bg-dark-800 transition-colors"
-        active-class="bg-atlas-600/20 text-atlas-300"
+        class="nav-item"
+        active-class="active"
       >
         <svg
           class="w-4 h-4"
@@ -109,7 +140,7 @@ function logout() {
       </RouterLink>
       <template v-if="isAdmin">
         <button
-          class="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm text-dark-400 hover:text-dark-100 hover:bg-dark-800 transition-colors"
+          class="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm text-muted hover:text-primary hover:bg-elevated transition-colors"
           @click="showCreateChannel = true"
         >
           <svg
@@ -128,7 +159,7 @@ function logout() {
           Создать канал
         </button>
         <button
-          class="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm text-dark-400 hover:text-dark-100 hover:bg-dark-800 transition-colors"
+          class="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm text-muted hover:text-primary hover:bg-elevated transition-colors"
           @click="showWorkspaceSettings = true"
         >
           <svg
@@ -156,75 +187,112 @@ function logout() {
     </div>
 
     <!-- User panel -->
-    <div class="p-3 border-t border-dark-800 flex items-center gap-3">
-      <Avatar
-        v-if="authStore.user"
-        :name="authStore.user.display_name"
-        :src="authStore.user.avatar_url"
-        size="sm"
-        status="online"
-      />
-      <div class="flex-1 min-w-0">
-        <p class="text-sm font-medium text-dark-100 truncate">
-          {{ authStore.user?.display_name }}
-        </p>
-        <p class="text-xs text-dark-500 truncate">
-          {{ authStore.user?.email }}
-        </p>
+    <div class="relative p-3 border-t border-subtle">
+      <!-- Status context menu -->
+      <Transition
+        enter-active-class="transition-all duration-150 origin-bottom-left"
+        enter-from-class="opacity-0 scale-95"
+        enter-to-class="opacity-100 scale-100"
+        leave-active-class="transition-all duration-100 origin-bottom-left"
+        leave-from-class="opacity-100 scale-100"
+        leave-to-class="opacity-0 scale-95"
+      >
+        <div
+          v-if="showStatusMenu"
+          class="absolute bottom-full left-3 mb-1 w-52 rounded-xl bg-overlay border border-default shadow-lg overflow-hidden z-50"
+        >
+          <div class="px-3 py-2 border-b border-default">
+            <p class="text-xs font-semibold text-subtle uppercase tracking-wider">Статус</p>
+          </div>
+          <div class="py-1">
+            <button
+              v-for="opt in STATUS_OPTIONS"
+              :key="opt.value"
+              type="button"
+              class="flex items-center gap-3 w-full px-3 py-2 text-sm text-secondary hover:bg-elevated transition-colors"
+              :class="authStore.user?.status === opt.value ? 'text-primary font-medium' : ''"
+              @click="setStatus(opt.value)"
+            >
+              <span class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ background: opt.color }" />
+              {{ opt.label }}
+              <svg
+                v-if="authStore.user?.status === opt.value"
+                class="ml-auto w-3.5 h-3.5 text-accent"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </Transition>
+
+      <div ref="statusMenuAnchorRef" class="flex items-center gap-2">
+        <!-- Avatar + name block — opens status menu on click -->
+        <button
+          type="button"
+          class="flex items-center gap-2 flex-1 min-w-0 rounded-lg px-1 py-1 hover:bg-elevated transition-colors text-left"
+          @click="showStatusMenu = !showStatusMenu"
+        >
+          <div class="relative shrink-0">
+            <Avatar
+              v-if="authStore.user"
+              :name="authStore.user.display_name"
+              :src="authStore.user.avatar_url"
+              size="sm"
+            />
+            <!-- Status dot -->
+            <span
+              class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[var(--bg-surface)]"
+              :style="{ background: currentStatusColor }"
+            />
+          </div>
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-primary truncate leading-tight">
+              {{ authStore.user?.display_name }}
+            </p>
+            <p class="text-xs text-subtle truncate leading-tight">
+              {{ authStore.user?.custom_status || authStore.user?.email }}
+            </p>
+          </div>
+        </button>
+
+        <!-- Settings -->
+        <button
+          class="btn-ghost p-1.5 rounded-lg text-muted hover:text-primary shrink-0"
+          title="Настройки"
+          @click="showUserSettings = true"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </button>
+
+        <!-- Logout -->
+        <button
+          class="btn-ghost p-1.5 rounded-lg text-muted hover:text-primary shrink-0"
+          title="Выйти"
+          @click="logout"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+        </button>
       </div>
-      <button
-        class="btn-ghost p-2 rounded-lg text-dark-400 hover:text-dark-100"
-        title="Настройки уведомлений"
-        @click="showUserSettings = true"
-      >
-        <svg
-          class="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-          />
-        </svg>
-      </button>
-      <button
-        class="btn-ghost p-2 rounded-lg text-dark-400 hover:text-dark-100"
-        title="Выйти"
-        @click="logout"
-      >
-        <svg
-          class="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-          />
-        </svg>
-      </button>
     </div>
 
-    <!-- Workspace settings modal -->
     <WorkspaceSettingsModal
       :open="showWorkspaceSettings"
       @close="showWorkspaceSettings = false"
     />
 
-    <!-- User notification settings modal -->
     <UserSettingsModal
       :open="showUserSettings"
       @close="showUserSettings = false"
     />
 
-    <!-- Create channel modal -->
     <Modal
       :open="showCreateChannel"
       title="Создать канал"
@@ -242,35 +310,34 @@ function logout() {
         />
 
         <div class="space-y-2">
-          <label class="block text-sm font-medium text-dark-300">Тип канала</label>
+          <label class="block text-sm font-medium text-tertiary">Тип канала</label>
           <div class="flex gap-3">
             <label class="flex items-center gap-2 cursor-pointer">
               <input
                 v-model="newChannelType"
                 type="radio"
                 value="text"
-                class="w-4 h-4 text-atlas-600 bg-dark-800 border-dark-600"
+                class="w-4 h-4 text-accent-600 bg-elevated border-strong"
               >
-              <span class="text-sm text-dark-200">Текстовый</span>
+              <span class="text-sm text-secondary">Текстовый</span>
             </label>
             <label class="flex items-center gap-2 cursor-pointer">
               <input
                 v-model="newChannelType"
                 type="radio"
                 value="voice"
-                class="w-4 h-4 text-atlas-600 bg-dark-800 border-dark-600"
+                class="w-4 h-4 text-accent-600 bg-elevated border-strong"
               >
-              <span class="text-sm text-dark-200">Голосовой</span>
+              <span class="text-sm text-secondary">Голосовой</span>
             </label>
           </div>
         </div>
 
-        <!-- Категория -->
         <div v-if="channelsStore.categories.length > 0">
-          <label class="block text-sm font-medium text-dark-300 mb-1.5">Категория</label>
+          <label class="block text-sm font-medium text-tertiary mb-1.5">Категория</label>
           <select
             v-model="newChannelCategoryId"
-            class="w-full px-3 py-2 bg-dark-900 border border-dark-700 rounded-lg text-dark-100 focus:border-atlas-500 focus:outline-none text-sm"
+            class="w-full px-3 py-2 bg-surface border border-default rounded-lg text-primary focus:border-accent focus:outline-none text-sm"
           >
             <option :value="null">
               Без категории
@@ -285,15 +352,14 @@ function logout() {
           </select>
         </div>
 
-        <!-- Приватный канал -->
         <div
           class="flex items-center justify-between p-3 rounded-lg cursor-pointer select-none"
-          :class="newChannelPrivate ? 'bg-atlas-600/10 border border-atlas-600/30' : 'bg-dark-800 border border-dark-700'"
+          :class="newChannelPrivate ? 'bg-accent-dim border border-accent-dim' : 'bg-elevated border border-default'"
           @click="newChannelPrivate = !newChannelPrivate"
         >
           <div class="flex items-center gap-2">
             <svg
-              class="w-4 h-4 text-dark-400 shrink-0"
+              class="w-4 h-4 text-muted shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -306,17 +372,17 @@ function logout() {
               />
             </svg>
             <div>
-              <p class="text-sm font-medium text-dark-100">
+              <p class="text-sm font-medium text-primary">
                 Приватный канал
               </p>
-              <p class="text-xs text-dark-500">
+              <p class="text-xs text-subtle">
                 Только приглашённые участники
               </p>
             </div>
           </div>
           <div
             class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0"
-            :class="newChannelPrivate ? 'bg-atlas-600' : 'bg-dark-600'"
+            :class="newChannelPrivate ? 'bg-accent' : 'bg-muted-fill'"
           >
             <span
               class="inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform"
@@ -345,5 +411,3 @@ function logout() {
     </Modal>
   </aside>
 </template>
-
-

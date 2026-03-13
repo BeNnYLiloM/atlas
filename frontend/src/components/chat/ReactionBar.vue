@@ -50,8 +50,8 @@ function getReactionTitle(r: ReactionGroup): string {
       class="flex items-center gap-1 px-2 py-0.5 rounded-full text-sm border transition-all"
       :class="[
         reaction.mine
-          ? 'bg-atlas-600/20 border-atlas-600/50 text-atlas-300'
-          : 'bg-dark-800 border-dark-700 text-dark-300 hover:border-dark-500'
+          ? 'bg-accent-dim-md border-accent-dim text-accent-strong'
+          : 'bg-elevated border-default text-tertiary hover:border-strong'
       ]"
       :title="getReactionTitle(reaction)"
       :aria-label="`Реакция ${reaction.emoji}: ${reaction.count}`"
@@ -64,7 +64,7 @@ function getReactionTitle(r: ReactionGroup): string {
     <!-- Кнопка добавить реакцию -->
     <div class="relative">
       <button
-        class="p-1 rounded-full text-dark-600 hover:text-dark-400 hover:bg-dark-800 transition-colors"
+        class="p-1 rounded-full text-faint hover:text-muted hover:bg-elevated transition-colors"
         aria-label="Добавить реакцию"
         @click="showPicker = !showPicker"
       >
@@ -87,12 +87,12 @@ function getReactionTitle(r: ReactionGroup): string {
       <div
         v-if="showPicker"
         v-click-outside="() => showPicker = false"
-        class="absolute bottom-7 left-0 z-10 bg-dark-800 border border-dark-700 rounded-xl p-2 shadow-xl flex gap-1 flex-wrap w-48"
+        class="absolute bottom-7 left-0 z-10 bg-elevated border border-default rounded-xl p-2 shadow-xl flex gap-1 flex-wrap w-48"
       >
         <button
           v-for="emoji in QUICK_EMOJIS"
           :key="emoji"
-          class="w-8 h-8 flex items-center justify-center rounded-lg text-lg hover:bg-dark-700 transition-colors"
+          class="w-8 h-8 flex items-center justify-center rounded-lg text-lg hover:bg-overlay transition-colors"
           :aria-label="`Поставить реакцию ${emoji}`"
           @click="toggleReaction(emoji)"
         >

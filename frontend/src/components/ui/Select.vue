@@ -69,18 +69,18 @@ function select(value: T) {
   >
     <button
       type="button"
-      class="w-full flex items-center justify-between gap-2 border rounded-lg bg-dark-900 text-dark-100 transition-colors focus:outline-none"
+      class="w-full flex items-center justify-between gap-2 border rounded-lg bg-surface text-primary transition-colors focus:outline-none"
       :class="[
         small ? 'px-2 py-1 text-xs' : 'px-3 py-2 text-sm',
-        open ? 'border-atlas-500' : 'border-dark-700 hover:border-dark-600',
+        open ? 'border-accent' : 'border-default hover:border-strong',
         disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
       ]"
       :disabled="disabled"
       @click="toggle"
     >
-      <span :class="!modelValue && placeholder ? 'text-dark-500' : ''">{{ selectedLabel }}</span>
+      <span :class="!modelValue && placeholder ? 'text-subtle' : ''">{{ selectedLabel }}</span>
       <svg
-        class="w-3.5 h-3.5 text-dark-400 shrink-0 transition-transform duration-150"
+        class="w-3.5 h-3.5 text-muted shrink-0 transition-transform duration-150"
         :class="open ? 'rotate-180' : ''"
         fill="none"
         stroke="currentColor"
@@ -105,7 +105,7 @@ function select(value: T) {
     >
       <div
         v-if="open"
-        class="absolute z-50 left-0 right-0 mt-1 bg-dark-800 border border-dark-600 rounded-lg shadow-2xl py-1 max-h-60 overflow-y-auto"
+        class="absolute z-50 left-0 right-0 mt-1 bg-elevated border border-strong rounded-lg shadow-2xl py-1 max-h-60 overflow-y-auto"
       >
         <button
           v-for="opt in options"
@@ -115,15 +115,15 @@ function select(value: T) {
           :class="[
             small ? 'text-xs py-1.5' : 'text-sm',
             modelValue === opt.value
-              ? 'text-atlas-400 bg-atlas-600/10'
-              : 'text-dark-200 hover:bg-dark-700 hover:text-white',
+              ? 'text-accent bg-accent-dim'
+              : 'text-secondary hover:bg-overlay hover:text-primary',
           ]"
           @click="select(opt.value)"
         >
           <span>{{ opt.label }}</span>
           <svg
             v-if="modelValue === opt.value"
-            class="w-3.5 h-3.5 text-atlas-400 shrink-0"
+            class="w-3.5 h-3.5 text-accent shrink-0"
             fill="currentColor"
             viewBox="0 0 20 20"
           >
