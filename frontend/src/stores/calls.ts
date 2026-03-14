@@ -4,6 +4,14 @@ import { Room, RoomEvent, Track } from 'livekit-client'
 import type { RemoteParticipant, RemoteTrackPublication, RemoteTrack } from 'livekit-client'
 import apiClient from '@/api/client'
 
+async function sendCallSignal(channelId: string, signal: 'started' | 'ended') {
+  try {
+    await apiClient.post('/calls/signal', { channel_id: channelId, signal })
+  } catch {
+    // silent — не критично если сигнал не дошёл
+  }
+}
+
 // Скрытый div для аудио элементов (LiveKit требует attach треков к DOM)
 let audioContainer: HTMLDivElement | null = null
 function getAudioContainer(): HTMLDivElement {
@@ -30,6 +38,8 @@ export const useCallsStore = defineStore('calls', () => {
   const participants = ref<string[]>([])
   const currentRoomName = ref<string | null>(null)
   const currentChannelId = ref<string | null>(null)
+  // Если звонок в DM — храним channelId для отправки сигналов
+  const dmChannelId = ref<string | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -45,7 +55,9 @@ export const useCallsStore = defineStore('calls', () => {
     await joinCall(channelId)
   }
 
-  async function joinCall(channelId: string) {
+  // notify=true — отправить signal=started (только инициатор звонка)
+  // notify=false — принятие звонка, сигнал не нужен
+  async function joinCall(channelId: string, isDM = false, notify = false) {
     if (isInCall.value) await leaveCall()
 
     loading.value = true
@@ -59,6 +71,12 @@ export const useCallsStore = defineStore('calls', () => {
       const { token, url, room_name } = res.data.data
       currentRoomName.value = room_name
       currentChannelId.value = channelId
+      dmChannelId.value = isDM ? channelId : null
+
+      // Уведомляем собеседника только если это инициатор
+      if (isDM && notify) {
+        void sendCallSignal(channelId, 'started')
+      }
 
       const newRoom = new Room({
         audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true },
@@ -88,7 +106,15 @@ export const useCallsStore = defineStore('calls', () => {
         if (audioContainer) audioContainer.innerHTML = ''
       })
 
-      await newRoom.connect(url, token)
+      await newRoom.connect(url, token, {
+        // Явно указываем STUN — нужно для Firefox (Chrome находит без него)
+        rtcConfig: {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+          ],
+        },
+      })
 
       // Attach аудио от участников уже находящихся в комнате
       newRoom.participants.forEach(participant => {
@@ -118,6 +144,15 @@ export const useCallsStore = defineStore('calls', () => {
   }
 
   async function leaveCall() {
+    // Уведомляем собеседника о завершении звонка
+    if (dmChannelId.value) {
+      void sendCallSignal(dmChannelId.value, 'ended')
+    }
+    await leaveCallSilently()
+  }
+
+  // Завершить звонок без отправки сигнала (вызывается по WS от собеседника)
+  async function leaveCallSilently() {
     if (room.value) {
       await room.value.disconnect()
       room.value = null
@@ -125,6 +160,7 @@ export const useCallsStore = defineStore('calls', () => {
     isInCall.value = false
     currentRoomName.value = null
     currentChannelId.value = null
+    dmChannelId.value = null
     participants.value = []
     if (audioContainer) audioContainer.innerHTML = ''
   }
@@ -158,6 +194,7 @@ export const useCallsStore = defineStore('calls', () => {
     participants.value = []
     currentRoomName.value = null
     currentChannelId.value = null
+    dmChannelId.value = null
     loading.value = false
     error.value = null
   }
@@ -170,12 +207,14 @@ export const useCallsStore = defineStore('calls', () => {
     participants,
     currentRoomName,
     currentChannelId,
+    dmChannelId,
     loading,
     error,
     isInChannel,
     joinCall,
     toggleVoiceChannel,
     leaveCall,
+    leaveCallSilently,
     toggleMute,
     toggleCamera,
     $reset,

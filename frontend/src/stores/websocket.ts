@@ -7,6 +7,8 @@ import { useWorkspaceStore } from './workspace'
 import { useAuthStore } from './auth'
 import { useProjectsStore } from './projects'
 import { useDMStore } from './dm'
+import { useIncomingCallStore } from './incomingCall'
+import { useCallsStore } from './calls'
 import { playNotificationSound, isSoundEnabled, isMentionSoundEnabled } from '@/utils/notificationSound'
 import { createAuthenticatedWebSocket } from '@/api/websocket'
 import { ensureAccessToken } from '@/api/session'
@@ -27,7 +29,7 @@ function showBrowserNotification(title: string, body: string, channelId: string)
 }
 
 interface WSEvent {
-  type: 'message' | 'message_updated' | 'message_deleted' | 'thread_reply' | 'channel_created' | 'channel_updated' | 'channel_deleted' | 'member_added' | 'member_removed' | 'member_updated' | 'workspace_updated' | 'typing' | 'presence' | 'reaction_added' | 'reaction_removed' | 'category_created' | 'category_updated' | 'category_deleted' | 'project_created' | 'project_updated' | 'project_deleted' | 'project_member_added' | 'project_member_removed' | 'dm_message' | 'dm_thread_reply'
+  type: 'message' | 'message_updated' | 'message_deleted' | 'thread_reply' | 'channel_created' | 'channel_updated' | 'channel_deleted' | 'member_added' | 'member_removed' | 'member_updated' | 'workspace_updated' | 'typing' | 'presence' | 'reaction_added' | 'reaction_removed' | 'category_created' | 'category_updated' | 'category_deleted' | 'project_created' | 'project_updated' | 'project_deleted' | 'project_member_added' | 'project_member_removed' | 'dm_message' | 'dm_thread_reply' | 'dm_call_started' | 'dm_call_ended'
   payload: unknown
 }
 
@@ -289,7 +291,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
         const authStore = useAuthStore()
         messagesStore.addMessage(message)
         if (message.user_id !== authStore.user?.id) {
-          useDMStore().onDMMessage(channel_id)
+          useDMStore().onDMMessage(channel_id, message.id)
           if (isSoundEnabled()) playNotificationSound('message')
         }
         break
@@ -298,6 +300,34 @@ export const useWebSocketStore = defineStore('websocket', () => {
       case 'dm_thread_reply': {
         const { parent_id, message } = event.payload as { channel_id: string; parent_id: string; message: Message }
         threadStore.addThreadReply(parent_id, message)
+        break
+      }
+
+      case 'dm_call_started': {
+        const { channel_id, caller_id, caller_name, caller_avatar } = event.payload as {
+          channel_id: string
+          caller_id: string
+          caller_name: string
+          caller_avatar: string | null
+        }
+        useIncomingCallStore().ring({
+          channelId: channel_id,
+          callerName: caller_name,
+          callerAvatar: caller_avatar,
+          callerId: caller_id,
+        })
+        break
+      }
+
+      case 'dm_call_ended': {
+        const callsStore = useCallsStore()
+        if (callsStore.isInCall) {
+          // Собеседник завершил звонок — завершаем и у нас без повторного сигнала
+          void callsStore.leaveCallSilently()
+        } else {
+          // Звонок ещё не был принят — убираем уведомление
+          useIncomingCallStore().clear()
+        }
         break
       }
 

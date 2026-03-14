@@ -1,20 +1,30 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useCallsStore } from '@/stores/calls'
 import { useChannelsStore } from '@/stores'
+import { useDMStore } from '@/stores/dm'
 
 const callsStore = useCallsStore()
 const channelsStore = useChannelsStore()
+const dmStore = useDMStore()
 
-// Имя текущего голосового канала
-function currentChannelName(): string {
+const callLabel = computed(() => {
   if (!callsStore.currentChannelId) return 'Голосовой канал'
-  const ch = channelsStore.channels.find(c => c.id === callsStore.currentChannelId)
-  return ch?.name ?? 'Голосовой канал'
-}
+  // Проверяем DM-чат
+  const dm = dmStore.dmList.find(d => d.channelId === callsStore.currentChannelId)
+  if (dm) return dm.peer.displayName
+  // Обычный voice-канал
+  return channelsStore.channels.find(c => c.id === callsStore.currentChannelId)?.name ?? 'Голосовой канал'
+})
+
+const callSubtitle = computed(() => {
+  const dm = dmStore.dmList.find(d => d.channelId === callsStore.currentChannelId)
+  return dm ? 'Личный звонок' : 'Голос подключён'
+})
 </script>
 
 <template>
-  <!-- Панель активного голосового канала — встраивается в нижнюю часть сайдбара (как в Discord) -->
+  <!-- Панель активного звонка — встраивается в нижнюю часть сайдбара -->
   <div
     v-if="callsStore.isInCall"
     class="border-t border-subtle bg-base p-2"
@@ -24,10 +34,10 @@ function currentChannelName(): string {
       <div class="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
       <div class="flex-1 min-w-0">
         <p class="text-xs font-medium text-green-400 truncate">
-          {{ currentChannelName() }}
+          {{ callLabel }}
         </p>
         <p class="text-xs text-subtle">
-          Голос подключён
+          {{ callSubtitle }}
         </p>
       </div>
     </div>
@@ -68,7 +78,7 @@ function currentChannelName(): string {
       <!-- Disconnect -->
       <button
         class="flex items-center justify-center w-8 h-8 rounded-lg bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white transition-colors"
-        title="Выйти из канала"
+        title="Завершить звонок"
         @click="callsStore.leaveCall()"
       >
         <svg
@@ -81,7 +91,7 @@ function currentChannelName(): string {
             stroke-linecap="round"
             stroke-linejoin="round"
             stroke-width="2"
-            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+            d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z"
           />
         </svg>
       </button>

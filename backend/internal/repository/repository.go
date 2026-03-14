@@ -161,6 +161,18 @@ type ProjectRepository interface {
 	GetLeadCount(ctx context.Context, projectID string) (int, error)
 }
 
+// DMChannelRepository - интерфейс для работы с личными сообщениями
+type DMChannelRepository interface {
+	// GetOrCreate атомарно возвращает существующий DM-канал или создаёт новый.
+	// Транзакция включает: channels + dm_channels + channel_members (оба участника).
+	GetOrCreate(ctx context.Context, workspaceID, userID1, userID2 string) (*domain.Channel, error)
+	// GetByUserID возвращает все DM-диалоги пользователя с данными собеседника.
+	GetByUserID(ctx context.Context, workspaceID, userID string) ([]*domain.DMChannel, error)
+	// IsMember проверяет что пользователь является участником DM-канала.
+	// Используется в CanAccessChannel для блокировки IDOR.
+	IsMember(ctx context.Context, channelID, userID string) (bool, error)
+}
+
 // MessageRepository - интерфейс для работы с сообщениями
 type MessageRepository interface {
 	Create(ctx context.Context, message *domain.Message) error

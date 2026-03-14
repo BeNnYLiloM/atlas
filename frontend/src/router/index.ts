@@ -54,6 +54,16 @@ const routes: RouteRecordRaw[] = [
         name: 'tasks',
         component: () => import('@/views/TasksView.vue'),
       },
+      {
+        path: 'dm',
+        name: 'dm',
+        component: () => import('@/views/DMView.vue'),
+      },
+      {
+        path: 'dm/:channelId',
+        name: 'dm-channel',
+        component: () => import('@/views/DMView.vue'),
+      },
     ],
   },
 ]

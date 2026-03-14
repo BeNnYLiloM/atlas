@@ -56,6 +56,7 @@ func main() {
 	reactionRepo := postgres.NewReactionRepository(db)
 	taskRepo := postgres.NewTaskRepository(db)
 	projectRepo := postgres.NewProjectRepo(db)
+	dmChannelRepo := postgres.NewDMChannelRepo(db)
 
 	wsHub := ws.NewHub(userRepo)
 	go wsHub.Run()
@@ -64,13 +65,14 @@ func main() {
 	workspaceService := service.NewWorkspaceService(workspaceRepo, channelRepo, roleRepo, projectRepo)
 	categoryService := service.NewChannelCategoryService(channelCategoryRepo, categoryPermRepo, channelRepo, workspaceRepo, roleRepo, projectRepo)
 	roleService := service.NewWorkspaceRoleService(roleRepo, workspaceRepo)
-	channelService := service.NewChannelService(channelRepo, workspaceRepo, channelMemberRepo, channelPermRepo, roleRepo, projectRepo)
-	messageService := service.NewMessageService(messageRepo, channelRepo, workspaceRepo, channelMemberRepo, channelPermRepo, roleRepo, projectRepo)
+	channelService := service.NewChannelService(channelRepo, workspaceRepo, channelMemberRepo, channelPermRepo, roleRepo, projectRepo, dmChannelRepo)
+	messageService := service.NewMessageService(messageRepo, channelRepo, workspaceRepo, channelMemberRepo, channelPermRepo, roleRepo, projectRepo, dmChannelRepo)
 	projectService := service.NewProjectService(projectRepo, workspaceRepo, roleRepo, channelRepo, channelPermRepo, channelMemberRepo)
 	liveKitService := service.NewLiveKitService(cfg.LiveKit)
-	searchService := service.NewSearchService(searchRepo, workspaceRepo, channelRepo, roleRepo, channelPermRepo, projectRepo)
+	searchService := service.NewSearchService(searchRepo, workspaceRepo, channelRepo, roleRepo, channelPermRepo, projectRepo, dmChannelRepo)
 	reactionService := service.NewReactionService(reactionRepo, wsHub)
-	taskService := service.NewTaskService(taskRepo, workspaceRepo, messageRepo, channelRepo, roleRepo, channelPermRepo, projectRepo)
+	taskService := service.NewTaskService(taskRepo, workspaceRepo, messageRepo, channelRepo, roleRepo, channelPermRepo, projectRepo, dmChannelRepo)
+	dmService := service.NewDMService(dmChannelRepo, userRepo, workspaceRepo)
 
 	minioStorage, minioErr := storage.NewMinIOStorage(
 		cfg.MinIO.Endpoint,
@@ -114,13 +116,18 @@ func main() {
 	searchHandler := handler.NewSearchHandler(searchService)
 	reactionHandler := handler.NewReactionHandler(reactionService)
 	taskHandler := handler.NewTaskHandler(taskService)
-	callsHandler := handler.NewCallsHandler(liveKitService, authService)
+	callsHandler := handler.NewCallsHandler(liveKitService, authService, channelService, wsHub)
 	projectHandler := handler.NewProjectHandler(projectService, channelService, channelCategoryRepo, fileService, wsHub)
 	projectHandler.RegisterRoutes(api, authMiddleware)
+
+	dmHandler := handler.NewDMHandler(dmService)
+	dmRateLimiter := middleware.NewRateLimiter(20, time.Hour)
 
 	protected := api.Group("")
 	protected.Use(authMiddleware)
 	{
+		protected.GET("/dm", dmHandler.List)
+		protected.POST("/dm", dmRateLimiter, dmHandler.Open)
 		protected.GET("/search", searchHandler.Search)
 		protected.POST("/messages/:id/reactions", reactionHandler.Add)
 		protected.DELETE("/messages/:id/reactions/:emoji", reactionHandler.Remove)
@@ -130,6 +137,7 @@ func main() {
 		protected.PATCH("/tasks/:id", taskHandler.Update)
 		protected.DELETE("/tasks/:id", taskHandler.Delete)
 		protected.POST("/calls/join", callsHandler.JoinCall)
+		protected.POST("/calls/signal", callsHandler.SignalCall)
 
 		if fileService != nil {
 			fileHandler := handler.NewFileHandler(fileService)
