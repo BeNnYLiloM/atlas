@@ -16,6 +16,7 @@ type ChannelCategoryService struct {
 	channelRepo   repository.ChannelRepository
 	workspaceRepo repository.WorkspaceRepository
 	roleRepo      repository.WorkspaceRoleRepository
+	projectRepo   repository.ProjectRepository
 }
 
 func NewChannelCategoryService(
@@ -24,6 +25,7 @@ func NewChannelCategoryService(
 	channelRepo repository.ChannelRepository,
 	workspaceRepo repository.WorkspaceRepository,
 	roleRepo repository.WorkspaceRoleRepository,
+	projectRepo repository.ProjectRepository,
 ) *ChannelCategoryService {
 	return &ChannelCategoryService{
 		repo:          repo,
@@ -31,6 +33,7 @@ func NewChannelCategoryService(
 		channelRepo:   channelRepo,
 		workspaceRepo: workspaceRepo,
 		roleRepo:      roleRepo,
+		projectRepo:   projectRepo,
 	}
 }
 
@@ -46,8 +49,22 @@ func (s *ChannelCategoryService) isAdmin(ctx context.Context, workspaceID, actor
 }
 
 func (s *ChannelCategoryService) Create(ctx context.Context, input domain.ChannelCategoryCreate, actorID string) (*domain.ChannelCategory, error) {
-	if err := s.isAdmin(ctx, input.WorkspaceID, actorID); err != nil {
-		return nil, err
+	// Для проектной категории проверяем: ws owner/admin ИЛИ is_lead
+	if input.ProjectID != nil {
+		member, err := s.workspaceRepo.GetMember(ctx, input.WorkspaceID, actorID)
+		if err != nil || member == nil {
+			return nil, ErrForbidden
+		}
+		if member.Role != domain.RoleOwner && member.Role != domain.RoleAdmin {
+			pm, err := s.projectRepo.GetMember(ctx, *input.ProjectID, actorID)
+			if err != nil || pm == nil || !pm.IsLead {
+				return nil, ErrForbidden
+			}
+		}
+	} else {
+		if err := s.isAdmin(ctx, input.WorkspaceID, actorID); err != nil {
+			return nil, err
+		}
 	}
 
 	existing, _ := s.repo.GetByWorkspaceID(ctx, input.WorkspaceID)
@@ -57,6 +74,7 @@ func (s *ChannelCategoryService) Create(ctx context.Context, input domain.Channe
 		Name:        input.Name,
 		Position:    len(existing),
 		IsPrivate:   input.IsPrivate,
+		ProjectID:   input.ProjectID,
 		CreatedAt:   time.Now(),
 	}
 	if err := s.repo.Create(ctx, cat); err != nil {
@@ -69,7 +87,7 @@ func (s *ChannelCategoryService) GetByWorkspaceID(ctx context.Context, workspace
 	return s.repo.GetByWorkspaceID(ctx, workspaceID)
 }
 
-// GetVisibleByWorkspaceID — только категории доступные пользователю
+// GetVisibleByWorkspaceID — только категории доступные пользователю (только воркспейс-категории, project_id IS NULL)
 func (s *ChannelCategoryService) GetVisibleByWorkspaceID(ctx context.Context, workspaceID, userID string) ([]*domain.ChannelCategory, error) {
 	roles, err := s.roleRepo.GetMemberRoles(ctx, workspaceID, userID)
 	if err != nil {
@@ -83,7 +101,11 @@ func (s *ChannelCategoryService) GetVisibleByWorkspaceID(ctx context.Context, wo
 	// owner/admin видят всё
 	member, _ := s.workspaceRepo.GetMember(ctx, workspaceID, userID)
 	if member != nil && (member.Role == domain.RoleOwner || member.Role == domain.RoleAdmin) {
-		return s.repo.GetByWorkspaceID(ctx, workspaceID)
+		all, err := s.repo.GetByWorkspaceID(ctx, workspaceID)
+		if err != nil {
+			return nil, err
+		}
+		return filterWorkspaceCategories(all), nil
 	}
 
 	visibleIDs, err := s.permRepo.GetVisibleCategoryIDs(ctx, workspaceID, userID, roleIDs)
@@ -101,11 +123,25 @@ func (s *ChannelCategoryService) GetVisibleByWorkspaceID(ctx context.Context, wo
 	}
 	result := make([]*domain.ChannelCategory, 0)
 	for _, cat := range all {
+		if cat.ProjectID != nil {
+			continue
+		}
 		if !cat.IsPrivate || visibleSet[cat.ID] {
 			result = append(result, cat)
 		}
 	}
 	return result, nil
+}
+
+// filterWorkspaceCategories оставляет только категории без project_id
+func filterWorkspaceCategories(cats []*domain.ChannelCategory) []*domain.ChannelCategory {
+	result := make([]*domain.ChannelCategory, 0, len(cats))
+	for _, c := range cats {
+		if c.ProjectID == nil {
+			result = append(result, c)
+		}
+	}
+	return result
 }
 
 func (s *ChannelCategoryService) Update(ctx context.Context, categoryID string, input domain.ChannelCategoryUpdate, actorID string) (*domain.ChannelCategory, error) {

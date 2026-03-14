@@ -33,6 +33,23 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/ChannelView.vue'),
       },
       {
+        path: 'projects/:projectId',
+        name: 'project',
+        component: () => import('@/views/ProjectView.vue'),
+        children: [
+          {
+            path: 'channels/:channelId?',
+            name: 'project-channel',
+            component: () => import('@/views/ChannelView.vue'),
+          },
+          {
+            path: 'tasks',
+            name: 'project-tasks',
+            component: () => import('@/views/TasksView.vue'),
+          },
+        ],
+      },
+      {
         path: 'tasks',
         name: 'tasks',
         component: () => import('@/views/TasksView.vue'),

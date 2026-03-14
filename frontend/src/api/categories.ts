@@ -7,6 +7,11 @@ export const categoriesApi = {
     return response.data.data ?? []
   },
 
+  async listByProject(projectId: string): Promise<ChannelCategory[]> {
+    const response = await apiClient.get<ApiResponse<ChannelCategory[]>>(`/projects/${projectId}/categories`)
+    return response.data.data ?? []
+  },
+
   async create(workspaceId: string, data: ChannelCategoryCreate): Promise<ChannelCategory> {
     const response = await apiClient.post<ApiResponse<ChannelCategory>>(`/workspaces/${workspaceId}/categories`, data)
     return response.data.data

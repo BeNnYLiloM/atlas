@@ -76,6 +76,7 @@ export interface Channel {
   slowmode_seconds: number
   position: number
   category_id: string | null
+  project_id: string | null
   created_at: string
 }
 
@@ -85,12 +86,14 @@ export interface ChannelCategory {
   name: string
   position: number
   is_private: boolean
+  project_id: string | null
   created_at: string
 }
 
 export interface ChannelCategoryCreate {
   name: string
   is_private?: boolean
+  project_id?: string | null
 }
 
 export interface ChannelCategoryUpdate {
@@ -134,6 +137,7 @@ export interface ChannelCreate {
   type: ChannelType
   is_private: boolean
   category_id?: string | null
+  project_id?: string | null
 }
 
 export interface ChannelUpdate {
@@ -163,6 +167,8 @@ export interface RolePermissions {
   mention_everyone: boolean
   manage_messages: boolean
   view_channels: boolean
+  create_projects: boolean
+  view_all_projects: boolean
 }
 
 export interface WorkspaceRole {
@@ -201,6 +207,8 @@ export function defaultPermissions(): RolePermissions {
     mention_everyone: false,
     manage_messages: false,
     view_channels: true,
+    create_projects: false,
+    view_all_projects: false,
   }
 }
 
@@ -271,4 +279,42 @@ export interface TypingEvent {
 export interface PresenceEvent {
   user_id: string
   status: 'online' | 'offline' | 'away'
+}
+
+// --- Project types ---
+
+export interface Project {
+  id: string
+  workspace_id: string
+  name: string
+  description: string | null
+  icon_url: string | null
+  is_archived: boolean
+  created_at: string
+}
+
+export interface ProjectMember {
+  project_id: string
+  user_id: string
+  is_lead: boolean
+  joined_at: string
+  display_name: string
+  avatar_url: string | null
+}
+
+export interface ProjectCreate {
+  name: string
+  description?: string | null
+  icon_url?: string | null
+}
+
+export interface ProjectUpdate {
+  name?: string
+  description?: string | null
+  icon_url?: string | null
+  clear_icon_url?: boolean
+}
+
+export interface ProjectMemberAdd {
+  user_id: string
 }

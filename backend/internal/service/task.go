@@ -11,7 +11,7 @@ import (
 
 type taskRepository interface {
 	Create(ctx context.Context, task *domain.Task) error
-	GetByWorkspace(ctx context.Context, workspaceID string, status string) ([]*domain.Task, error)
+	GetByWorkspace(ctx context.Context, workspaceID, projectID, status string) ([]*domain.Task, error)
 	GetByID(ctx context.Context, id string) (*domain.Task, error)
 	Update(ctx context.Context, id string, update *domain.TaskUpdate) error
 	Delete(ctx context.Context, id string) error
@@ -24,6 +24,7 @@ type TaskService struct {
 	channelRepo   repository.ChannelRepository
 	roleRepo      repository.WorkspaceRoleRepository
 	permRepo      repository.ChannelPermissionRepository
+	projectRepo   repository.ProjectRepository
 }
 
 func NewTaskService(
@@ -33,6 +34,7 @@ func NewTaskService(
 	channelRepo repository.ChannelRepository,
 	roleRepo repository.WorkspaceRoleRepository,
 	permRepo repository.ChannelPermissionRepository,
+	projectRepo repository.ProjectRepository,
 ) *TaskService {
 	return &TaskService{
 		repo:          repo,
@@ -41,6 +43,7 @@ func NewTaskService(
 		channelRepo:   channelRepo,
 		roleRepo:      roleRepo,
 		permRepo:      permRepo,
+		projectRepo:   projectRepo,
 	}
 }
 
@@ -61,7 +64,7 @@ func (s *TaskService) Create(ctx context.Context, userID string, input *domain.T
 		if message == nil {
 			return nil, ErrMessageNotFound
 		}
-		channel, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, message.ChannelID, userID)
+		channel, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, message.ChannelID, userID)
 		if err != nil {
 			return nil, err
 		}
@@ -79,6 +82,7 @@ func (s *TaskService) Create(ctx context.Context, userID string, input *domain.T
 		ID:          uuid.New().String(),
 		MessageID:   input.MessageID,
 		WorkspaceID: input.WorkspaceID,
+		ProjectID:   input.ProjectID,
 		Title:       input.Title,
 		Description: input.Description,
 		Status:      domain.TaskStatusTodo,
@@ -96,11 +100,11 @@ func (s *TaskService) Create(ctx context.Context, userID string, input *domain.T
 	return task, nil
 }
 
-func (s *TaskService) GetByWorkspace(ctx context.Context, workspaceID, status, userID string) ([]*domain.Task, error) {
+func (s *TaskService) GetByWorkspace(ctx context.Context, workspaceID, projectID, status, userID string) ([]*domain.Task, error) {
 	if _, err := ensureWorkspaceMember(ctx, s.workspaceRepo, workspaceID, userID); err != nil {
 		return nil, err
 	}
-	return s.repo.GetByWorkspace(ctx, workspaceID, status)
+	return s.repo.GetByWorkspace(ctx, workspaceID, projectID, status)
 }
 
 func (s *TaskService) GetByID(ctx context.Context, id, userID string) (*domain.Task, error) {

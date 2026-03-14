@@ -19,18 +19,18 @@ func NewChannelCategoryRepo(db *pgxpool.Pool) *ChannelCategoryRepo {
 
 func (r *ChannelCategoryRepo) Create(ctx context.Context, cat *domain.ChannelCategory) error {
 	return r.db.QueryRow(ctx, `
-		INSERT INTO channel_categories (id, workspace_id, name, position, is_private)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO channel_categories (id, workspace_id, name, position, is_private, project_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING created_at
-	`, cat.ID, cat.WorkspaceID, cat.Name, cat.Position, cat.IsPrivate).Scan(&cat.CreatedAt)
+	`, cat.ID, cat.WorkspaceID, cat.Name, cat.Position, cat.IsPrivate, cat.ProjectID).Scan(&cat.CreatedAt)
 }
 
 func (r *ChannelCategoryRepo) GetByID(ctx context.Context, id string) (*domain.ChannelCategory, error) {
 	cat := &domain.ChannelCategory{}
 	err := r.db.QueryRow(ctx, `
-		SELECT id, workspace_id, name, position, is_private, created_at
+		SELECT id, workspace_id, name, position, is_private, project_id, created_at
 		FROM channel_categories WHERE id = $1
-	`, id).Scan(&cat.ID, &cat.WorkspaceID, &cat.Name, &cat.Position, &cat.IsPrivate, &cat.CreatedAt)
+	`, id).Scan(&cat.ID, &cat.WorkspaceID, &cat.Name, &cat.Position, &cat.IsPrivate, &cat.ProjectID, &cat.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -39,7 +39,7 @@ func (r *ChannelCategoryRepo) GetByID(ctx context.Context, id string) (*domain.C
 
 func (r *ChannelCategoryRepo) GetByWorkspaceID(ctx context.Context, workspaceID string) ([]*domain.ChannelCategory, error) {
 	rows, err := r.db.Query(ctx, `
-		SELECT id, workspace_id, name, position, is_private, created_at
+		SELECT id, workspace_id, name, position, is_private, project_id, created_at
 		FROM channel_categories WHERE workspace_id = $1
 		ORDER BY position ASC, created_at ASC
 	`, workspaceID)
@@ -51,7 +51,10 @@ func (r *ChannelCategoryRepo) GetByWorkspaceID(ctx context.Context, workspaceID 
 	var cats []*domain.ChannelCategory
 	for rows.Next() {
 		cat := &domain.ChannelCategory{}
-		if err := rows.Scan(&cat.ID, &cat.WorkspaceID, &cat.Name, &cat.Position, &cat.IsPrivate, &cat.CreatedAt); err != nil {
+		if err := rows.Scan(
+			&cat.ID, &cat.WorkspaceID, &cat.Name, &cat.Position,
+			&cat.IsPrivate, &cat.ProjectID, &cat.CreatedAt,
+		); err != nil {
 			return nil, err
 		}
 		cats = append(cats, cat)
@@ -68,14 +71,12 @@ func (r *ChannelCategoryRepo) Update(ctx context.Context, id string, update *dom
 			position   = COALESCE($3, position),
 			is_private = COALESCE($4, is_private)
 		WHERE id = $1
-		RETURNING id, workspace_id, name, position, is_private, created_at
+		RETURNING id, workspace_id, name, position, is_private, project_id, created_at
 	`, id, update.Name, update.Position, update.IsPrivate).Scan(
-		&cat.ID, &cat.WorkspaceID, &cat.Name, &cat.Position, &cat.IsPrivate, &cat.CreatedAt,
+		&cat.ID, &cat.WorkspaceID, &cat.Name, &cat.Position,
+		&cat.IsPrivate, &cat.ProjectID, &cat.CreatedAt,
 	)
-	if err != nil {
-		return nil, err
-	}
-	return cat, nil
+	return cat, err
 }
 
 func (r *ChannelCategoryRepo) Delete(ctx context.Context, id string) error {

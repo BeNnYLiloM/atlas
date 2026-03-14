@@ -7,6 +7,7 @@ export interface Task {
   id: string
   message_id: string | null
   workspace_id: string
+  project_id: string | null
   title: string
   description: string | null
   status: TaskStatus
@@ -21,6 +22,7 @@ export interface Task {
 export interface TaskCreate {
   message_id?: string
   workspace_id: string
+  project_id?: string
   title: string
   description?: string
   priority?: TaskPriority
@@ -42,9 +44,10 @@ export const tasksApi = {
     return res.data.data
   },
 
-  async list(workspaceId: string, status?: string): Promise<Task[]> {
+  async list(workspaceId: string, options?: { projectId?: string; status?: string }): Promise<Task[]> {
     const params = new URLSearchParams({ workspace_id: workspaceId })
-    if (status) params.append('status', status)
+    if (options?.projectId) params.append('project_id', options.projectId)
+    if (options?.status) params.append('status', options.status)
     const res = await apiClient.get<{ data: Task[] }>(`/tasks?${params}`)
     return res.data.data ?? []
   },

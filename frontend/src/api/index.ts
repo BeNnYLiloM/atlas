@@ -5,5 +5,6 @@ export { channelsApi } from './channels'
 export { messagesApi } from './messages'
 export { rolesApi } from './roles'
 export { categoriesApi } from './categories'
+export { projectsApi } from './projects'
 export { default as apiClient } from './client'
 

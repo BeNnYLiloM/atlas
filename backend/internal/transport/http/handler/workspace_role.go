@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/your-org/atlas/backend/internal/domain"
@@ -13,13 +15,15 @@ import (
 type WorkspaceRoleHandler struct {
 	roleService    *service.WorkspaceRoleService
 	channelService *service.ChannelService
+	projectService *service.ProjectService
 	wsHub          *ws.Hub
 }
 
-func NewWorkspaceRoleHandler(roleService *service.WorkspaceRoleService, channelService *service.ChannelService, wsHub *ws.Hub) *WorkspaceRoleHandler {
+func NewWorkspaceRoleHandler(roleService *service.WorkspaceRoleService, channelService *service.ChannelService, projectService *service.ProjectService, wsHub *ws.Hub) *WorkspaceRoleHandler {
 	return &WorkspaceRoleHandler{
 		roleService:    roleService,
 		channelService: channelService,
+		projectService: projectService,
 		wsHub:          wsHub,
 	}
 }
@@ -131,6 +135,23 @@ func (h *WorkspaceRoleHandler) AssignRole(c *gin.Context) {
 	channels, _ := h.channelService.GetChannelsByRole(c.Request.Context(), body.RoleID)
 	go func() {
 		for _, ch := range channels {
+			// Канал проекта: отправляем только если targetUser состоит в проекте
+			if ch.ProjectID != nil {
+				members, err := h.projectService.GetMembers(context.Background(), *ch.ProjectID, userID)
+				if err != nil {
+					continue
+				}
+				inProject := false
+				for _, m := range members {
+					if m.UserID == targetUserID {
+						inProject = true
+						break
+					}
+				}
+				if !inProject {
+					continue
+				}
+			}
 			h.wsHub.SendToUser(targetUserID, "channel_created", ch)
 		}
 		// Уведомляем всех участников воркспейса об изменении роли

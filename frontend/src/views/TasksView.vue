@@ -1,12 +1,23 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { tasksApi, KANBAN_COLUMNS, TASK_STATUS_LABELS } from '@/api/tasks'
 import type { Task, TaskStatus } from '@/api/tasks'
 import { useWorkspaceStore } from '@/stores/workspace'
+import { useProjectsStore } from '@/stores/projects'
 import TaskCard from '@/components/tasks/TaskCard.vue'
 import TaskCreationModal from '@/components/tasks/TaskCreationModal.vue'
 
+const route = useRoute()
 const workspaceStore = useWorkspaceStore()
+const projectsStore = useProjectsStore()
+
+const projectId = computed(() => route.params.projectId as string | undefined || undefined)
+
+const currentProject = computed(() =>
+  projectId.value ? projectsStore.projects.find(p => p.id === projectId.value) : null
+)
+
 const tasks = ref<Task[]>([])
 const loading = ref(false)
 const showCreateModal = ref(false)
@@ -15,7 +26,9 @@ async function loadTasks() {
   if (!workspaceStore.currentWorkspaceId) return
   loading.value = true
   try {
-    tasks.value = await tasksApi.list(workspaceStore.currentWorkspaceId)
+    tasks.value = await tasksApi.list(workspaceStore.currentWorkspaceId, {
+      projectId: projectId.value,
+    })
   } finally {
     loading.value = false
   }
@@ -25,6 +38,7 @@ function getColumnTasks(status: TaskStatus): Task[] {
   return tasks.value.filter(t => t.status === status)
 }
 
+watch(projectId, loadTasks)
 onMounted(loadTasks)
 </script>
 
@@ -32,9 +46,17 @@ onMounted(loadTasks)
   <div class="flex flex-col h-full">
     <!-- Header -->
     <div class="flex items-center justify-between px-6 py-4 border-b border-subtle flex-shrink-0">
-      <h1 class="text-lg font-semibold text-primary">
-        Задачи
-      </h1>
+      <div>
+        <h1 class="text-lg font-semibold text-primary">
+          Задачи
+        </h1>
+        <p
+          v-if="currentProject"
+          class="text-xs text-muted mt-0.5"
+        >
+          {{ currentProject.name }}
+        </p>
+      </div>
       <button
         class="btn btn-primary"
         @click="showCreateModal = true"
@@ -108,6 +130,7 @@ onMounted(loadTasks)
     <!-- Create modal -->
     <TaskCreationModal
       v-if="showCreateModal"
+      :project-id="projectId"
       @close="showCreateModal = false"
       @created="loadTasks"
     />

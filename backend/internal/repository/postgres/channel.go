@@ -19,8 +19,8 @@ func NewChannelRepo(db *pgxpool.Pool) *ChannelRepo {
 
 func (r *ChannelRepo) Create(ctx context.Context, channel *domain.Channel) error {
 	query := `
-		INSERT INTO channels (id, workspace_id, name, type, is_private, category_id)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO channels (id, workspace_id, name, type, is_private, category_id, project_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING created_at
 	`
 	return r.db.QueryRow(ctx, query,
@@ -30,66 +30,52 @@ func (r *ChannelRepo) Create(ctx context.Context, channel *domain.Channel) error
 		channel.Type,
 		channel.IsPrivate,
 		channel.CategoryID,
+		channel.ProjectID,
 	).Scan(&channel.CreatedAt)
 }
 
 func (r *ChannelRepo) GetByID(ctx context.Context, id string) (*domain.Channel, error) {
 	query := `
-		SELECT id, workspace_id, name, type, is_private, topic, slowmode_seconds, position, category_id, created_at
+		SELECT id, workspace_id, name, type, is_private, topic, slowmode_seconds,
+		       position, category_id, project_id, created_at
 		FROM channels WHERE id = $1
 	`
 	ch := &domain.Channel{}
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&ch.ID,
-		&ch.WorkspaceID,
-		&ch.Name,
-		&ch.Type,
-		&ch.IsPrivate,
-		&ch.Topic,
-		&ch.SlowmodeSeconds,
-		&ch.Position,
-		&ch.CategoryID,
-		&ch.CreatedAt,
+		&ch.ID, &ch.WorkspaceID, &ch.Name, &ch.Type,
+		&ch.IsPrivate, &ch.Topic, &ch.SlowmodeSeconds,
+		&ch.Position, &ch.CategoryID, &ch.ProjectID, &ch.CreatedAt,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
-	if err != nil {
-		return nil, err
-	}
-	return ch, nil
+	return ch, err
 }
 
 func (r *ChannelRepo) GetByWorkspaceID(ctx context.Context, workspaceID string) ([]*domain.Channel, error) {
 	query := `
-		SELECT id, workspace_id, name, type, is_private, topic, slowmode_seconds, position, category_id, created_at
+		SELECT id, workspace_id, name, type, is_private, topic, slowmode_seconds,
+		       position, category_id, project_id, created_at
 		FROM channels WHERE workspace_id = $1
 		ORDER BY position ASC, created_at ASC
 	`
-	rows, err := r.db.Query(ctx, query, workspaceID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+	return r.scanChannels(ctx, query, workspaceID)
+}
 
-	var channels []*domain.Channel
-	for rows.Next() {
-		ch := &domain.Channel{}
-		if err := rows.Scan(
-			&ch.ID, &ch.WorkspaceID, &ch.Name, &ch.Type,
-			&ch.IsPrivate, &ch.Topic, &ch.SlowmodeSeconds, &ch.Position, &ch.CategoryID, &ch.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		channels = append(channels, ch)
-	}
-	return channels, rows.Err()
+func (r *ChannelRepo) GetByProjectID(ctx context.Context, projectID string) ([]*domain.Channel, error) {
+	query := `
+		SELECT id, workspace_id, name, type, is_private, topic, slowmode_seconds,
+		       position, category_id, project_id, created_at
+		FROM channels WHERE project_id = $1
+		ORDER BY position ASC, created_at ASC
+	`
+	return r.scanChannels(ctx, query, projectID)
 }
 
 func (r *ChannelRepo) GetVisibleByWorkspaceID(ctx context.Context, workspaceID, userID string, roleIDs []string) ([]*domain.Channel, error) {
 	query := `
 		SELECT DISTINCT c.id, c.workspace_id, c.name, c.type, c.is_private,
-		       c.topic, c.slowmode_seconds, c.position, c.category_id, c.created_at
+		       c.topic, c.slowmode_seconds, c.position, c.category_id, c.project_id, c.created_at
 		FROM channels c
 		WHERE c.workspace_id = $1
 		  AND (
@@ -105,24 +91,7 @@ func (r *ChannelRepo) GetVisibleByWorkspaceID(ctx context.Context, workspaceID, 
 		  )
 		ORDER BY c.position ASC, c.created_at ASC
 	`
-	rows, err := r.db.Query(ctx, query, workspaceID, userID, roleIDs)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var channels []*domain.Channel
-	for rows.Next() {
-		ch := &domain.Channel{}
-		if err := rows.Scan(
-			&ch.ID, &ch.WorkspaceID, &ch.Name, &ch.Type,
-			&ch.IsPrivate, &ch.Topic, &ch.SlowmodeSeconds, &ch.Position, &ch.CategoryID, &ch.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		channels = append(channels, ch)
-	}
-	return channels, rows.Err()
+	return r.scanChannels(ctx, query, workspaceID, userID, roleIDs)
 }
 
 func (r *ChannelRepo) Update(ctx context.Context, id string, update *domain.ChannelUpdate) (*domain.Channel, error) {
@@ -135,9 +104,9 @@ func (r *ChannelRepo) Update(ctx context.Context, id string, update *domain.Chan
 			slowmode_seconds = COALESCE($5, slowmode_seconds),
 			category_id      = CASE WHEN $6::boolean THEN $7::uuid ELSE category_id END
 		WHERE id = $1
-		RETURNING id, workspace_id, name, type, is_private, topic, slowmode_seconds, position, category_id, created_at
+		RETURNING id, workspace_id, name, type, is_private, topic, slowmode_seconds,
+		          position, category_id, project_id, created_at
 	`
-	// $6 — флаг "обновлять ли category_id", $7 — само значение
 	setCategoryID := update.CategoryID != nil
 	var categoryIDVal *string
 	if setCategoryID {
@@ -149,12 +118,10 @@ func (r *ChannelRepo) Update(ctx context.Context, id string, update *domain.Chan
 		setCategoryID, categoryIDVal,
 	).Scan(
 		&ch.ID, &ch.WorkspaceID, &ch.Name, &ch.Type,
-		&ch.IsPrivate, &ch.Topic, &ch.SlowmodeSeconds, &ch.Position, &ch.CategoryID, &ch.CreatedAt,
+		&ch.IsPrivate, &ch.Topic, &ch.SlowmodeSeconds,
+		&ch.Position, &ch.CategoryID, &ch.ProjectID, &ch.CreatedAt,
 	)
-	if err != nil {
-		return nil, err
-	}
-	return ch, nil
+	return ch, err
 }
 
 func (r *ChannelRepo) Delete(ctx context.Context, id string) error {
@@ -162,3 +129,24 @@ func (r *ChannelRepo) Delete(ctx context.Context, id string) error {
 	return err
 }
 
+func (r *ChannelRepo) scanChannels(ctx context.Context, query string, args ...interface{}) ([]*domain.Channel, error) {
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var channels []*domain.Channel
+	for rows.Next() {
+		ch := &domain.Channel{}
+		if err := rows.Scan(
+			&ch.ID, &ch.WorkspaceID, &ch.Name, &ch.Type,
+			&ch.IsPrivate, &ch.Topic, &ch.SlowmodeSeconds,
+			&ch.Position, &ch.CategoryID, &ch.ProjectID, &ch.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		channels = append(channels, ch)
+	}
+	return channels, rows.Err()
+}

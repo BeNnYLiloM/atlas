@@ -5,6 +5,7 @@ import { useChannelsStore } from './channels'
 import { useThreadStore } from './thread'
 import { useWorkspaceStore } from './workspace'
 import { useAuthStore } from './auth'
+import { useProjectsStore } from './projects'
 import { playNotificationSound, isSoundEnabled, isMentionSoundEnabled } from '@/utils/notificationSound'
 import { createAuthenticatedWebSocket } from '@/api/websocket'
 import { ensureAccessToken } from '@/api/session'
@@ -25,7 +26,7 @@ function showBrowserNotification(title: string, body: string, channelId: string)
 }
 
 interface WSEvent {
-  type: 'message' | 'message_updated' | 'message_deleted' | 'thread_reply' | 'channel_created' | 'channel_updated' | 'channel_deleted' | 'member_added' | 'member_removed' | 'member_updated' | 'workspace_updated' | 'typing' | 'presence' | 'reaction_added' | 'reaction_removed' | 'category_created' | 'category_updated' | 'category_deleted'
+  type: 'message' | 'message_updated' | 'message_deleted' | 'thread_reply' | 'channel_created' | 'channel_updated' | 'channel_deleted' | 'member_added' | 'member_removed' | 'member_updated' | 'workspace_updated' | 'typing' | 'presence' | 'reaction_added' | 'reaction_removed' | 'category_created' | 'category_updated' | 'category_deleted' | 'project_created' | 'project_updated' | 'project_deleted' | 'project_member_added' | 'project_member_removed'
   payload: unknown
 }
 
@@ -86,6 +87,7 @@ export const useWebSocketStore = defineStore('websocket', () => {
     const channelsStore = useChannelsStore()
     const threadStore = useThreadStore()
     const workspaceStore = useWorkspaceStore()
+    const projectsStore = useProjectsStore()
 
     switch (event.type) {
       case 'message': {
@@ -247,6 +249,36 @@ export const useWebSocketStore = defineStore('websocket', () => {
         const { user_id, status } = event.payload as { user_id: string, status: string }
         workspaceStore.setPresence(user_id, status)
         console.log('[WS] Presence update:', user_id, '->', status)
+        break
+      }
+
+      case 'project_created': {
+        const project = event.payload as import('@/types').Project
+        projectsStore.onProjectCreated(project)
+        break
+      }
+
+      case 'project_updated': {
+        const project = event.payload as import('@/types').Project
+        projectsStore.onProjectUpdated(project)
+        break
+      }
+
+      case 'project_deleted': {
+        const data = event.payload as { project_id: string }
+        projectsStore.onProjectDeleted(data)
+        break
+      }
+
+      case 'project_member_added': {
+        const data = event.payload as { project_id: string; user_id: string }
+        projectsStore.onMemberAdded(data)
+        break
+      }
+
+      case 'project_member_removed': {
+        const data = event.payload as { project_id: string; user_id: string }
+        projectsStore.onMemberRemoved(data)
         break
       }
 

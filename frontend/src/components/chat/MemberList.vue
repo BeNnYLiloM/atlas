@@ -2,11 +2,13 @@
 import { ref, computed, watch } from 'vue'
 import { channelsApi } from '@/api'
 import { useWorkspaceStore, useChannelsStore } from '@/stores'
+import { useProjectsStore } from '@/stores/projects'
 import type { ChannelMemberInfo, WorkspaceMember, WorkspaceRole } from '@/types'
 import { Avatar } from '@/components/ui'
 
 const workspaceStore = useWorkspaceStore()
 const channelsStore = useChannelsStore()
+const projectsStore = useProjectsStore()
 
 const channelMembers = ref<ChannelMemberInfo[]>([])
 const loading = ref(false)
@@ -50,6 +52,22 @@ const enrichedMembers = computed<EnrichedMember[]>(() => {
         system_role: 'member' as const,
         custom_roles: [],
         presence: workspaceStore.getPresence(cm.user_id),
+      }
+    })
+  }
+
+  // Если канал принадлежит проекту — показываем только участников проекта
+  if (projectsStore.currentProjectId) {
+    return projectsStore.currentMembers.map((pm) => {
+      const wm = workspaceMembers.value.find(m => m.user_id === pm.user_id)
+      if (wm) return toEnriched(wm)
+      return {
+        user_id: pm.user_id,
+        display_name: pm.display_name,
+        avatar_url: pm.avatar_url,
+        system_role: 'member' as const,
+        custom_roles: [],
+        presence: workspaceStore.getPresence(pm.user_id),
       }
     })
   }

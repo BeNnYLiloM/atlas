@@ -18,6 +18,7 @@ type MessageService struct {
 	channelMemberRepo repository.ChannelMemberRepository
 	permRepo          repository.ChannelPermissionRepository
 	roleRepo          repository.WorkspaceRoleRepository
+	projectRepo       repository.ProjectRepository
 }
 
 func NewMessageService(
@@ -27,6 +28,7 @@ func NewMessageService(
 	channelMemberRepo repository.ChannelMemberRepository,
 	permRepo repository.ChannelPermissionRepository,
 	roleRepo repository.WorkspaceRoleRepository,
+	projectRepo repository.ProjectRepository,
 ) *MessageService {
 	return &MessageService{
 		messageRepo:       messageRepo,
@@ -35,14 +37,26 @@ func NewMessageService(
 		channelMemberRepo: channelMemberRepo,
 		permRepo:          permRepo,
 		roleRepo:          roleRepo,
+		projectRepo:       projectRepo,
 	}
 }
 
 // Create создает новое сообщение
 func (s *MessageService) Create(ctx context.Context, input domain.MessageCreate, userID string) (*domain.Message, error) {
-	channel, member, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, input.ChannelID, userID)
+	channel, member, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, input.ChannelID, userID)
 	if err != nil {
 		return nil, err
+	}
+
+	// Проверяем что проект не архивирован
+	if channel.ProjectID != nil {
+		project, err := s.projectRepo.GetByID(ctx, *channel.ProjectID)
+		if err != nil {
+			return nil, err
+		}
+		if project != nil && project.IsArchived {
+			return nil, ErrProjectArchived
+		}
 	}
 
 	// Slowmode: проверяем только для обычных сообщений (не тредов) и не для owner/admin
@@ -80,7 +94,7 @@ func (s *MessageService) Create(ctx context.Context, input domain.MessageCreate,
 
 // GetByChannelID возвращает сообщения канала
 func (s *MessageService) GetByChannelID(ctx context.Context, channelID, userID string, limit, offset int) ([]*domain.Message, error) {
-	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, channelID, userID); err != nil {
+	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, channelID, userID); err != nil {
 		return nil, err
 	}
 
@@ -123,7 +137,7 @@ func (s *MessageService) GetThreadMessages(ctx context.Context, parentID, userID
 		return nil, ErrMessageNotFound
 	}
 
-	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, parent.ChannelID, userID); err != nil {
+	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, parent.ChannelID, userID); err != nil {
 		return nil, err
 	}
 
@@ -140,7 +154,7 @@ func (s *MessageService) Update(ctx context.Context, messageID string, input dom
 		return nil, ErrMessageNotFound
 	}
 
-	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, message.ChannelID, userID); err != nil {
+	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, message.ChannelID, userID); err != nil {
 		return nil, err
 	}
 
@@ -167,7 +181,7 @@ func (s *MessageService) Delete(ctx context.Context, messageID, userID string) (
 		return "", ErrMessageNotFound
 	}
 
-	channel, member, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, message.ChannelID, userID)
+	channel, member, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, message.ChannelID, userID)
 	if err != nil {
 		return "", err
 	}
@@ -197,7 +211,7 @@ func (s *MessageService) MarkThreadAsRead(ctx context.Context, parentMessageID, 
 		return ErrMessageNotFound
 	}
 
-	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, parent.ChannelID, userID); err != nil {
+	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, parent.ChannelID, userID); err != nil {
 		return err
 	}
 
@@ -215,7 +229,7 @@ func (s *MessageService) GetThreadUnreadCount(ctx context.Context, parentMessage
 		return 0, ErrMessageNotFound
 	}
 
-	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, parent.ChannelID, userID); err != nil {
+	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, parent.ChannelID, userID); err != nil {
 		return 0, err
 	}
 

@@ -21,6 +21,7 @@ type Task struct {
 	ID          string       `json:"id" db:"id"`
 	MessageID   *string      `json:"message_id" db:"message_id"`
 	WorkspaceID string       `json:"workspace_id" db:"workspace_id"`
+	ProjectID   *string      `json:"project_id" db:"project_id"`
 	Title       string       `json:"title" db:"title"`
 	Description *string      `json:"description" db:"description"`
 	Status      TaskStatus   `json:"status" db:"status"`
@@ -39,6 +40,7 @@ type Task struct {
 type TaskCreate struct {
 	MessageID   *string      `json:"message_id"`
 	WorkspaceID string       `json:"workspace_id" binding:"required"`
+	ProjectID   *string      `json:"project_id"`
 	Title       string       `json:"title" binding:"required,min=1,max=255"`
 	Description *string      `json:"description"`
 	Priority    TaskPriority `json:"priority"`

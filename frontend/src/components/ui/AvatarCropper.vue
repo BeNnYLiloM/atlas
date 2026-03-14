@@ -9,10 +9,12 @@ import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 interface Props {
   file: File
   outputSize?: number  // размер выходного изображения в пикселях, по умолчанию 512
+  shape?: 'circle' | 'square'  // форма маски, по умолчанию circle
 }
 
 const props = withDefaults(defineProps<Props>(), {
   outputSize: 512,
+  shape: 'circle',
 })
 
 const emit = defineEmits<{
@@ -80,24 +82,58 @@ function draw() {
   // Изображение
   ctx.drawImage(img, offsetX, offsetY, img.naturalWidth * scale, img.naturalHeight * scale)
 
-  // Затемнение за пределами круга через evenodd path (прямоугольник с «дыркой»)
-  const cx = CANVAS_SIZE / 2
-  const cy = CANVAS_SIZE / 2
-  const r = CANVAS_SIZE / 2 - 1
+  // Затемнение за пределами маски через evenodd path
+  const pad = 8
+  const inset = pad
+  const size = CANVAS_SIZE - pad * 2
+  const cornerRadius = props.shape === 'square' ? 20 : CANVAS_SIZE / 2 - 1
 
   ctx.save()
   ctx.fillStyle = 'rgba(0, 0, 0, 0.55)'
   ctx.beginPath()
-  ctx.rect(0, 0, CANVAS_SIZE, CANVAS_SIZE)   // внешний прямоугольник
-  ctx.arc(cx, cy, r, 0, Math.PI * 2, true)   // круг против часовой — «вычитается»
+  ctx.rect(0, 0, CANVAS_SIZE, CANVAS_SIZE)  // внешний прямоугольник
+  if (props.shape === 'square') {
+    // Скруглённый прямоугольник против часовой — «вычитается»
+    const x = inset, y = inset, w = size, h = size, r = cornerRadius
+    ctx.moveTo(x + r, y)
+    ctx.lineTo(x + w - r, y)
+    ctx.arcTo(x + w, y, x + w, y + r, r)
+    ctx.lineTo(x + w, y + h - r)
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r)
+    ctx.lineTo(x + r, y + h)
+    ctx.arcTo(x, y + h, x, y + h - r, r)
+    ctx.lineTo(x, y + r)
+    ctx.arcTo(x, y, x + r, y, r)
+    ctx.closePath()
+  } else {
+    const cx = CANVAS_SIZE / 2
+    const cy = CANVAS_SIZE / 2
+    ctx.arc(cx, cy, cornerRadius, 0, Math.PI * 2, true)
+  }
   ctx.fill('evenodd')
   ctx.restore()
 
-  // Обводка круга
+  // Обводка маски
   ctx.strokeStyle = 'rgba(255,255,255,0.3)'
   ctx.lineWidth = 1.5
   ctx.beginPath()
-  ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  if (props.shape === 'square') {
+    const x = inset, y = inset, w = size, h = size, r = cornerRadius
+    ctx.moveTo(x + r, y)
+    ctx.lineTo(x + w - r, y)
+    ctx.arcTo(x + w, y, x + w, y + r, r)
+    ctx.lineTo(x + w, y + h - r)
+    ctx.arcTo(x + w, y + h, x + w - r, y + h, r)
+    ctx.lineTo(x + r, y + h)
+    ctx.arcTo(x, y + h, x, y + h - r, r)
+    ctx.lineTo(x, y + r)
+    ctx.arcTo(x, y, x + r, y, r)
+    ctx.closePath()
+  } else {
+    const cx = CANVAS_SIZE / 2
+    const cy = CANVAS_SIZE / 2
+    ctx.arc(cx, cy, cornerRadius, 0, Math.PI * 2)
+  }
   ctx.stroke()
 }
 
@@ -255,17 +291,35 @@ function applyCrop() {
   const ctx = output.getContext('2d')!
 
   // Масштабируем координаты к outputSize
-  const ratio = props.outputSize / CANVAS_SIZE
+  // Для square маска занимает (CANVAS_SIZE - pad*2) пикселей из CANVAS_SIZE
+  const pad = props.shape === 'square' ? 8 : 0
+  const maskSize = CANVAS_SIZE - pad * 2
+  const ratio = props.outputSize / maskSize
 
-  // Круглая маска
+  // Клип-маска
   ctx.beginPath()
-  ctx.arc(props.outputSize / 2, props.outputSize / 2, props.outputSize / 2, 0, Math.PI * 2)
+  if (props.shape === 'square') {
+    const r = 20 * ratio
+    const s = props.outputSize
+    ctx.moveTo(r, 0)
+    ctx.lineTo(s - r, 0)
+    ctx.arcTo(s, 0, s, r, r)
+    ctx.lineTo(s, s - r)
+    ctx.arcTo(s, s, s - r, s, r)
+    ctx.lineTo(r, s)
+    ctx.arcTo(0, s, 0, s - r, r)
+    ctx.lineTo(0, r)
+    ctx.arcTo(0, 0, r, 0, r)
+    ctx.closePath()
+  } else {
+    ctx.arc(props.outputSize / 2, props.outputSize / 2, props.outputSize / 2, 0, Math.PI * 2)
+  }
   ctx.clip()
 
   ctx.drawImage(
     img,
-    offsetX * ratio,
-    offsetY * ratio,
+    (offsetX - pad) * ratio,
+    (offsetY - pad) * ratio,
     img.naturalWidth * scale * ratio,
     img.naturalHeight * scale * ratio,
   )
@@ -286,7 +340,7 @@ function applyCrop() {
       <div class="flex flex-col items-center gap-5 w-full max-w-sm card p-6">
         <div class="w-full flex items-center justify-between">
           <h3 class="text-base font-semibold text-primary">
-            Выберите область фото
+            {{ props.shape === 'square' ? 'Выберите область иконки' : 'Выберите область фото' }}
           </h3>
           <button
             type="button"
@@ -312,7 +366,8 @@ function applyCrop() {
 
         <!-- Canvas -->
         <div
-          class="relative rounded-full overflow-hidden cursor-grab active:cursor-grabbing select-none touch-none"
+          class="relative cursor-grab active:cursor-grabbing select-none touch-none"
+          :class="props.shape === 'circle' ? 'rounded-full overflow-hidden' : 'rounded-2xl overflow-hidden'"
           :style="{ width: `${CANVAS_SIZE}px`, height: `${CANVAS_SIZE}px` }"
         >
           <canvas

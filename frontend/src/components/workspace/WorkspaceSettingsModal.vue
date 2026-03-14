@@ -319,6 +319,8 @@ const permissionLabels: { key: keyof RolePermissions; label: string; description
   { key: 'manage_roles', label: 'Управлять ролями', description: 'Создавать и редактировать роли ниже своей' },
   { key: 'manage_workspace', label: 'Управлять воркспейсом', description: 'Редактировать название и описание' },
   { key: 'view_audit_log', label: 'Просматривать журнал', description: 'Видеть историю действий в воркспейсе' },
+  { key: 'create_projects', label: 'Создавать проекты', description: 'Создавать новые проекты в воркспейсе' },
+  { key: 'view_all_projects', label: 'Видеть все проекты', description: 'Просматривать все проекты воркспейса, включая закрытые' },
 ]
 
 watch(activeTab, async (tab) => {

@@ -207,23 +207,19 @@ function getMentionCount(channelId: string): number {
             v-for="channel in group.channels"
             :key="channel.id"
             class="nav-item"
-            :class="{ active: isActive(channel.id) }"
+            :class="[{ active: isActive(channel.id) }, group.id ? 'pl-4' : '']"
             @click="selectChannel(channel.id)"
             @contextmenu="openContextMenu($event, channel.id)"
           >
-            <svg
-              class="w-5 h-5 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"
-              />
-            </svg>
+            <!-- Иконка канала: решётка для публичного, решётка+замок для приватного -->
+            <span class="relative w-5 h-5 flex-shrink-0 flex items-center justify-center">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+              </svg>
+              <svg v-if="channel.is_private" class="absolute -bottom-0.5 -right-0.5 w-3 h-3 text-subtle bg-surface rounded-sm" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+              </svg>
+            </span>
             <span
               class="truncate text-sm"
               :class="getUnreadCount(channel.id) > 0 ? 'font-semibold' : ''"
@@ -286,18 +282,6 @@ function getMentionCount(channelId: string): number {
                 >
                   {{ getUnreadCount(channel.id) > 99 ? '99+' : getUnreadCount(channel.id) }}
                 </span>
-                <svg
-                  v-else-if="channel.is_private"
-                  class="w-3.5 h-3.5 text-subtle"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fill-rule="evenodd"
-                    d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
               </template>
             </div>
           </button>
@@ -365,7 +349,8 @@ function getMentionCount(channelId: string): number {
               :class="[
                 callsStore.isInChannel(channel.id)
                   ? 'bg-green-900/30 text-green-400'
-                  : 'text-muted hover:text-primary hover:bg-elevated'
+                  : 'text-muted hover:text-primary hover:bg-elevated',
+                group.id ? 'pl-4' : ''
               ]"
               :disabled="callsStore.loading"
               @click="joinVoiceChannel(channel.id)"
