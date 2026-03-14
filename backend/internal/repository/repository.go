@@ -75,8 +75,10 @@ type ChannelRepository interface {
 	// GetVisibleByWorkspaceID — только каналы доступные пользователю:
 	// публичные + приватные где у него есть явный доступ или его роль добавлена
 	GetVisibleByWorkspaceID(ctx context.Context, workspaceID, userID string, roleIDs []string) ([]*domain.Channel, error)
-	// GetByProjectID — каналы принадлежащие проекту
+	// GetByProjectID — все каналы проекта (для внутренних нужд, без access check)
 	GetByProjectID(ctx context.Context, projectID string) ([]*domain.Channel, error)
+	// GetVisibleByProjectID — только видимые пользователю каналы проекта
+	GetVisibleByProjectID(ctx context.Context, projectID, userID string, roleIDs []string) ([]*domain.Channel, error)
 	Update(ctx context.Context, id string, update *domain.ChannelUpdate) (*domain.Channel, error)
 	Delete(ctx context.Context, id string) error
 }

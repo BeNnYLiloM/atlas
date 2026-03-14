@@ -298,7 +298,11 @@ func (s *ProjectService) AddMember(ctx context.Context, projectID, targetUserID,
 
 	// Добавляем нового участника в публичные каналы проекта
 	// и в приватные каналы проекта, к которым у него есть доступ через роль воркспейса.
-	go s.syncMemberToProjectChannels(context.Background(), project, targetUserID)
+	// Синхронно: ошибки синхронизации не должны откатывать добавление участника,
+	// но должны быть возвращены для диагностики.
+	if err := s.syncMemberToProjectChannels(ctx, project, targetUserID); err != nil {
+		return fmt.Errorf("sync member to channels (non-fatal): %w", err)
+	}
 
 	return nil
 }
@@ -306,16 +310,16 @@ func (s *ProjectService) AddMember(ctx context.Context, projectID, targetUserID,
 // syncMemberToProjectChannels добавляет участника проекта в channel_members.
 // Публичные каналы проекта — всегда. Приватные — только если у пользователя есть
 // роль воркспейса, которая добавлена в права этого канала.
-func (s *ProjectService) syncMemberToProjectChannels(ctx context.Context, project *domain.Project, userID string) {
+func (s *ProjectService) syncMemberToProjectChannels(ctx context.Context, project *domain.Project, userID string) error {
 	channels, err := s.channelRepo.GetByProjectID(ctx, project.ID)
 	if err != nil {
-		return
+		return fmt.Errorf("get project channels: %w", err)
 	}
 
 	// Роли пользователя в воркспейсе
 	userRoles, err := s.roleRepo.GetMemberRoles(ctx, project.WorkspaceID, userID)
 	if err != nil {
-		return
+		return fmt.Errorf("get member roles: %w", err)
 	}
 	userRoleIDs := make(map[string]bool, len(userRoles))
 	for _, r := range userRoles {
@@ -325,21 +329,26 @@ func (s *ProjectService) syncMemberToProjectChannels(ctx context.Context, projec
 	for _, ch := range channels {
 		if !ch.IsPrivate {
 			// Публичный канал проекта — добавляем сразу
-			_ = s.channelMemberRepo.UpsertMember(ctx, userID, ch.ID)
+			if err := s.channelMemberRepo.UpsertMember(ctx, userID, ch.ID); err != nil {
+				return fmt.Errorf("upsert member for channel %s: %w", ch.ID, err)
+			}
 			continue
 		}
 		// Приватный — проверяем роли канала
 		perms, err := s.channelPermRepo.GetPermissions(ctx, ch.ID)
 		if err != nil {
-			continue
+			return fmt.Errorf("get channel permissions %s: %w", ch.ID, err)
 		}
 		for _, rp := range perms.Roles {
 			if userRoleIDs[rp.RoleID] {
-				_ = s.channelMemberRepo.UpsertMember(ctx, userID, ch.ID)
+				if err := s.channelMemberRepo.UpsertMember(ctx, userID, ch.ID); err != nil {
+					return fmt.Errorf("upsert member for private channel %s: %w", ch.ID, err)
+				}
 				break
 			}
 		}
 	}
+	return nil
 }
 
 // RemoveMember удаляет участника из проекта.
@@ -364,6 +373,14 @@ func (s *ProjectService) SetLead(ctx context.Context, projectID, targetUserID, a
 	if err := s.canManageProject(ctx, project, actorID, false); err != nil {
 		return err
 	}
+	// HIGH-4: target должен быть участником проекта
+	pm, err := s.projectRepo.GetMember(ctx, projectID, targetUserID)
+	if err != nil {
+		return fmt.Errorf("check project member: %w", err)
+	}
+	if pm == nil {
+		return ErrNotMember
+	}
 	return s.projectRepo.SetLead(ctx, projectID, targetUserID, true)
 }
 
@@ -375,6 +392,14 @@ func (s *ProjectService) UnsetLead(ctx context.Context, projectID, targetUserID,
 	}
 	if err := s.canManageProject(ctx, project, actorID, false); err != nil {
 		return err
+	}
+	// HIGH-4: target должен быть участником проекта
+	pm, err := s.projectRepo.GetMember(ctx, projectID, targetUserID)
+	if err != nil {
+		return fmt.Errorf("check project member: %w", err)
+	}
+	if pm == nil {
+		return ErrNotMember
 	}
 	count, err := s.projectRepo.GetLeadCount(ctx, projectID)
 	if err != nil {

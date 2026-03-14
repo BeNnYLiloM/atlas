@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -202,8 +203,38 @@ func filterWorkspaceChannels(channels []*domain.Channel) []*domain.Channel {
 }
 
 // GetByProjectIDWithUnread возвращает каналы проекта с unread counts для userID.
+// owner/admin видят все каналы, is_lead видит все, остальные — только публичные + те к которым есть доступ.
 func (s *ChannelService) GetByProjectIDWithUnread(ctx context.Context, projectID, workspaceID, userID string) ([]*domain.ChannelWithUnread, error) {
-	channels, err := s.channelRepo.GetByProjectID(ctx, projectID)
+	member, err := s.workspaceRepo.GetMember(ctx, workspaceID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if member == nil {
+		return nil, ErrNotMember
+	}
+
+	var channels []*domain.Channel
+	if member.Role == domain.RoleOwner || member.Role == domain.RoleAdmin {
+		// ws owner/admin видят все каналы проекта включая приватные
+		channels, err = s.channelRepo.GetByProjectID(ctx, projectID)
+	} else {
+		// Проверяем is_lead в проекте
+		pm, pmErr := s.projectRepo.GetMember(ctx, projectID, userID)
+		if pmErr == nil && pm != nil && pm.IsLead {
+			channels, err = s.channelRepo.GetByProjectID(ctx, projectID)
+		} else {
+			// Обычный участник: только публичные + те к которым есть доступ
+			wsRoles, rolesErr := s.roleRepo.GetMemberRoles(ctx, workspaceID, userID)
+			if rolesErr != nil {
+				return nil, fmt.Errorf("get member roles: %w", rolesErr)
+			}
+			roleIDs := make([]string, 0, len(wsRoles))
+			for _, r := range wsRoles {
+				roleIDs = append(roleIDs, r.ID)
+			}
+			channels, err = s.channelRepo.GetVisibleByProjectID(ctx, projectID, userID, roleIDs)
+		}
+	}
 	if err != nil {
 		return nil, err
 	}

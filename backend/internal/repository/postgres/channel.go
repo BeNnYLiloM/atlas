@@ -72,6 +72,34 @@ func (r *ChannelRepo) GetByProjectID(ctx context.Context, projectID string) ([]*
 	return r.scanChannels(ctx, query, projectID)
 }
 
+// GetVisibleByProjectID — каналы проекта видимые пользователю:
+// публичные + приватные где у него явный доступ через channel_user_permissions или channel_role_permissions
+func (r *ChannelRepo) GetVisibleByProjectID(ctx context.Context, projectID, userID string, roleIDs []string) ([]*domain.Channel, error) {
+	query := `
+		SELECT DISTINCT c.id, c.workspace_id, c.name, c.type, c.is_private,
+		       c.topic, c.slowmode_seconds, c.position, c.category_id, c.project_id, c.created_at
+		FROM channels c
+		WHERE c.project_id = $1
+		  AND (
+		    c.is_private = FALSE
+		    OR EXISTS (
+		      SELECT 1 FROM channel_user_permissions cup
+		      WHERE cup.channel_id = c.id AND cup.user_id = $2
+		    )
+		    OR EXISTS (
+		      SELECT 1 FROM channel_role_permissions crp
+		      WHERE crp.channel_id = c.id AND crp.role_id = ANY($3)
+		    )
+		    OR EXISTS (
+		      SELECT 1 FROM channel_members cm
+		      WHERE cm.channel_id = c.id AND cm.user_id = $2
+		    )
+		  )
+		ORDER BY c.position ASC, c.created_at ASC
+	`
+	return r.scanChannels(ctx, query, projectID, userID, roleIDs)
+}
+
 func (r *ChannelRepo) GetVisibleByWorkspaceID(ctx context.Context, workspaceID, userID string, roleIDs []string) ([]*domain.Channel, error) {
 	query := `
 		SELECT DISTINCT c.id, c.workspace_id, c.name, c.type, c.is_private,
