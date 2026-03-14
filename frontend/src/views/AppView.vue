@@ -3,7 +3,9 @@ import { onMounted, onUnmounted, watch, computed } from 'vue'
 import { RouterView, useRouter, useRoute } from 'vue-router'
 import { useAuthStore, useWorkspaceStore, useChannelsStore, useWebSocketStore } from '@/stores'
 import { useProjectsStore } from '@/stores/projects'
+import { useDMStore } from '@/stores/dm'
 import Sidebar from '@/components/layout/Sidebar.vue'
+import AppRail from '@/components/layout/AppRail.vue'
 import SearchBar from '@/components/search/SearchBar.vue'
 import ShortcutsModal from '@/components/settings/ShortcutsModal.vue'
 import { useIdleDetector } from '@/composables'
@@ -15,6 +17,7 @@ const workspaceStore = useWorkspaceStore()
 const channelsStore = useChannelsStore()
 const wsStore = useWebSocketStore()
 const projectsStore = useProjectsStore()
+const dmStore = useDMStore()
 const router = useRouter()
 const route = useRoute()
 
@@ -104,9 +107,11 @@ watch(
 
     if (newWorkspaceId) {
       wsStore.subscribeToWorkspace(newWorkspaceId)
-      // Не загружаем воркспейс-каналы если находимся в проекте —
-      // ProjectView сам загрузит нужные данные
-      const fetchTasks: Promise<unknown>[] = [workspaceStore.fetchMembers(newWorkspaceId)]
+      const fetchTasks: Promise<unknown>[] = [
+        workspaceStore.fetchMembers(newWorkspaceId),
+        dmStore.fetchDMs(),
+        projectsStore.fetchProjects(newWorkspaceId),
+      ]
       if (!isProjectRoute.value) {
         fetchTasks.push(channelsStore.fetchChannels(newWorkspaceId))
       }
@@ -129,6 +134,7 @@ watch(isProjectRoute, async (inProject, wasInProject) => {
 
 <template>
   <div class="flex h-screen bg-base">
+    <AppRail />
     <Sidebar />
 
     <main class="flex-1 flex flex-col min-w-0">
