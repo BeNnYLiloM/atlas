@@ -127,6 +127,18 @@ export const useMessagesStore = defineStore('messages', () => {
     }
   }
 
+  // Обновляет поля call-сообщения по ID (без знания channel_id — ищем по всем каналам)
+  function updateCallMessage(messageId: string, callStatus: 'ringing' | 'cancelled' | 'missed' | 'ongoing' | 'ended', durationSec: number | null) {
+    for (const messages of Object.values(messagesByChannel.value)) {
+      const msg = messages.find(m => m.id === messageId)
+      if (msg) {
+        msg.call_status = callStatus
+        msg.call_duration_sec = durationSec ?? undefined
+        break
+      }
+    }
+  }
+
   function $reset() {
     messagesByChannel.value = {}
     loading.value = false
@@ -145,6 +157,7 @@ export const useMessagesStore = defineStore('messages', () => {
     fetchMessages,
     sendMessage,
     addMessage,
+    updateCallMessage,
     updateMessage,
     deleteMessage,
     $reset,

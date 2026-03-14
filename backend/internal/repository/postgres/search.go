@@ -148,18 +148,18 @@ func (r *SearchRepository) Search(ctx context.Context, filter repository.SearchF
 	var results []*repository.SearchResult
 	for rows.Next() {
 		msg := &domain.Message{}
-		user := &domain.User{}
+		author := &domain.MessageAuthor{}
 		result := &repository.SearchResult{Message: msg}
 
 		if err := rows.Scan(
 			&msg.ID, &msg.ChannelID, &msg.UserID, &msg.Content, &msg.ParentID, &msg.CreatedAt, &msg.UpdatedAt,
-			&user.ID, &user.DisplayName, &user.AvatarURL,
+			&author.ID, &author.DisplayName, &author.AvatarURL,
 			&result.Rank,
 			&result.Highlight,
 		); err != nil {
 			return nil, 0, fmt.Errorf("SearchRepository.Search scan: %w", err)
 		}
-		msg.User = user
+		msg.User = author
 		results = append(results, result)
 	}
 

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useCallsStore } from '@/stores/calls'
 import { useIncomingCallStore } from '@/stores/incomingCall'
 import { Avatar } from '@/components/ui'
+import apiClient from '@/api/client'
 
 const router = useRouter()
 const callsStore = useCallsStore()
@@ -30,14 +31,32 @@ watch(
 async function accept() {
   if (!incomingCall.channelId) return
   const channelId = incomingCall.channelId
+  // Сохраняем callMsgId до clear() — нужен в joinCall для signal=accepted
+  if (incomingCall.callMsgId) {
+    callsStore.setCallMsgId(incomingCall.callMsgId)
+  }
   incomingCall.clear()
   await callsStore.joinCall(channelId, true, false)
-  // Переходим в DM чат если не там
   await router.push({ name: 'dm-channel', params: { channelId } })
 }
 
-function decline() {
+async function decline() {
+  if (!incomingCall.channelId) return
+  const channelId = incomingCall.channelId
+  const msgId = incomingCall.callMsgId
   incomingCall.clear()
+  // Уведомляем инициатора что звонок отклонён → статус missed
+  try {
+    await apiClient.post('/calls/signal', {
+      channel_id: channelId,
+      signal: 'ended',
+      call_msg_id: msgId,
+      started_at: 0,
+      cancelled: false,
+    })
+  } catch {
+    // silent
+  }
 }
 </script>
 

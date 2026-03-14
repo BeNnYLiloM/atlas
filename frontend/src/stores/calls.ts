@@ -4,9 +4,19 @@ import { Room, RoomEvent, Track } from 'livekit-client'
 import type { RemoteParticipant, RemoteTrackPublication, RemoteTrack } from 'livekit-client'
 import apiClient from '@/api/client'
 
-async function sendCallSignal(channelId: string, signal: 'started' | 'ended') {
+async function sendCallSignal(
+  channelId: string,
+  signal: 'started' | 'accepted' | 'ended',
+  opts?: { callMsgId?: string; startedAt?: number; cancelled?: boolean },
+) {
   try {
-    await apiClient.post('/calls/signal', { channel_id: channelId, signal })
+    await apiClient.post('/calls/signal', {
+      channel_id: channelId,
+      signal,
+      call_msg_id: opts?.callMsgId,
+      started_at: opts?.startedAt,
+      cancelled: opts?.cancelled ?? false,
+    })
   } catch {
     // silent — не критично если сигнал не дошёл
   }
@@ -40,6 +50,10 @@ export const useCallsStore = defineStore('calls', () => {
   const currentChannelId = ref<string | null>(null)
   // Если звонок в DM — храним channelId для отправки сигналов
   const dmChannelId = ref<string | null>(null)
+  // ID call-сообщения в истории чата (для обновления статуса при завершении)
+  const callMsgId = ref<string | null>(null)
+  // Время старта звонка в unix ms (для вычисления длительности)
+  const callStartedAt = ref<number | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -73,9 +87,14 @@ export const useCallsStore = defineStore('calls', () => {
       currentChannelId.value = channelId
       dmChannelId.value = isDM ? channelId : null
 
-      // Уведомляем собеседника только если это инициатор
       if (isDM && notify) {
+        // Инициатор — отправляем started; startedAt НЕ ставим здесь,
+        // он устанавливается только когда собеседник принял (accepted)
         void sendCallSignal(channelId, 'started')
+      } else if (isDM) {
+        // Принятие — фиксируем время начала реального разговора
+        callStartedAt.value = Date.now()
+        void sendCallSignal(channelId, 'accepted', { callMsgId: callMsgId.value ?? undefined })
       }
 
       const newRoom = new Room({
@@ -144,9 +163,14 @@ export const useCallsStore = defineStore('calls', () => {
   }
 
   async function leaveCall() {
-    // Уведомляем собеседника о завершении звонка
     if (dmChannelId.value) {
-      void sendCallSignal(dmChannelId.value, 'ended')
+      // cancelled=true если инициатор сам бросил трубку пока собеседник ещё не принял
+      const wasAccepted = callStartedAt.value !== null
+      void sendCallSignal(dmChannelId.value, 'ended', {
+        callMsgId: callMsgId.value ?? undefined,
+        startedAt: callStartedAt.value ?? undefined,
+        cancelled: !wasAccepted,
+      })
     }
     await leaveCallSilently()
   }
@@ -161,8 +185,19 @@ export const useCallsStore = defineStore('calls', () => {
     currentRoomName.value = null
     currentChannelId.value = null
     dmChannelId.value = null
+    callMsgId.value = null
+    callStartedAt.value = null
     participants.value = []
     if (audioContainer) audioContainer.innerHTML = ''
+  }
+
+  function setCallMsgId(id: string) {
+    callMsgId.value = id
+  }
+
+  // Вызывается когда собеседник принял звонок — фиксируем реальное начало разговора
+  function markCallStarted() {
+    callStartedAt.value = Date.now()
   }
 
   async function toggleMute() {
@@ -195,6 +230,8 @@ export const useCallsStore = defineStore('calls', () => {
     currentRoomName.value = null
     currentChannelId.value = null
     dmChannelId.value = null
+    callMsgId.value = null
+    callStartedAt.value = null
     loading.value = false
     error.value = null
   }
@@ -208,6 +245,8 @@ export const useCallsStore = defineStore('calls', () => {
     currentRoomName,
     currentChannelId,
     dmChannelId,
+    callMsgId,
+    callStartedAt,
     loading,
     error,
     isInChannel,
@@ -215,6 +254,8 @@ export const useCallsStore = defineStore('calls', () => {
     toggleVoiceChannel,
     leaveCall,
     leaveCallSilently,
+    setCallMsgId,
+    markCallStarted,
     toggleMute,
     toggleCamera,
     $reset,
