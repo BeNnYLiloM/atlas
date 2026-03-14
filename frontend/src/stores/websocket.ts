@@ -29,7 +29,7 @@ function showBrowserNotification(title: string, body: string, channelId: string)
 }
 
 interface WSEvent {
-  type: 'message' | 'message_updated' | 'message_deleted' | 'thread_reply' | 'channel_created' | 'channel_updated' | 'channel_deleted' | 'member_added' | 'member_removed' | 'member_updated' | 'workspace_updated' | 'typing' | 'presence' | 'reaction_added' | 'reaction_removed' | 'category_created' | 'category_updated' | 'category_deleted' | 'project_created' | 'project_updated' | 'project_deleted' | 'project_member_added' | 'project_member_removed' | 'dm_message' | 'dm_thread_reply' | 'dm_call_started' | 'dm_call_ended'
+  type: 'message' | 'message_updated' | 'message_deleted' | 'thread_reply' | 'channel_created' | 'channel_updated' | 'channel_deleted' | 'member_added' | 'member_removed' | 'member_updated' | 'workspace_updated' | 'typing' | 'presence' | 'reaction_added' | 'reaction_removed' | 'category_created' | 'category_updated' | 'category_deleted' | 'project_created' | 'project_updated' | 'project_deleted' | 'project_member_added' | 'project_member_removed' | 'dm_message' | 'dm_thread_reply' | 'dm_call_started' | 'dm_call_ended' | 'dm_call_message_updated'
   payload: unknown
 }
 
@@ -290,9 +290,13 @@ export const useWebSocketStore = defineStore('websocket', () => {
         const { channel_id, message } = event.payload as { channel_id: string; message: Message }
         const authStore = useAuthStore()
         messagesStore.addMessage(message)
+        // Если это call-сообщение инициатора — сохраняем ID для последующего обновления статуса
+        if (message.type === 'call' && message.user_id === authStore.user?.id) {
+          useCallsStore().setCallMsgId(message.id)
+        }
         if (message.user_id !== authStore.user?.id) {
           useDMStore().onDMMessage(channel_id, message.id)
-          if (isSoundEnabled()) playNotificationSound('message')
+          if (isSoundEnabled() && message.type !== 'call') playNotificationSound('message')
         }
         break
       }
@@ -304,17 +308,19 @@ export const useWebSocketStore = defineStore('websocket', () => {
       }
 
       case 'dm_call_started': {
-        const { channel_id, caller_id, caller_name, caller_avatar } = event.payload as {
+        const { channel_id, caller_id, caller_name, caller_avatar, call_msg_id } = event.payload as {
           channel_id: string
           caller_id: string
           caller_name: string
           caller_avatar: string | null
+          call_msg_id: string
         }
         useIncomingCallStore().ring({
           channelId: channel_id,
           callerName: caller_name,
           callerAvatar: caller_avatar,
           callerId: caller_id,
+          callMsgId: call_msg_id,
         })
         break
       }
@@ -322,11 +328,27 @@ export const useWebSocketStore = defineStore('websocket', () => {
       case 'dm_call_ended': {
         const callsStore = useCallsStore()
         if (callsStore.isInCall) {
-          // Собеседник завершил звонок — завершаем и у нас без повторного сигнала
           void callsStore.leaveCallSilently()
         } else {
-          // Звонок ещё не был принят — убираем уведомление
           useIncomingCallStore().clear()
+        }
+        break
+      }
+
+      case 'dm_call_message_updated': {
+        const { call_msg_id, call_status, duration_sec } = event.payload as {
+          channel_id: string
+          call_msg_id: string
+          call_status: 'ringing' | 'cancelled' | 'missed' | 'ongoing' | 'ended'
+          duration_sec: number | null
+        }
+        messagesStore.updateCallMessage(call_msg_id, call_status, duration_sec)
+        // Инициатор получает ongoing → фиксируем время начала разговора для вычисления длительности
+        if (call_status === 'ongoing') {
+          const callsStore = useCallsStore()
+          if (callsStore.isInCall && !callsStore.callStartedAt) {
+            callsStore.markCallStarted()
+          }
         }
         break
       }

@@ -155,6 +155,35 @@ const isMentioned = computed(() => {
   if (!myName) return false
   return props.message.content.includes(`@${myName}`) || props.message.content.includes('@everyone')
 })
+
+const isCallMessage = computed(() => props.message.type === 'call')
+
+const callLabel = computed(() => {
+  if (!isCallMessage.value) return ''
+  const status = props.message.call_status
+  if (status === 'ringing') {
+    return 'Звоним...'
+  }
+  if (status === 'cancelled') {
+    return 'Звонок отменён'
+  }
+  if (status === 'missed') {
+    const isMe = props.message.user_id === authStore.user?.id
+    return isMe ? 'Звонок не принят' : 'Пропущенный звонок'
+  }
+  if (status === 'ongoing') {
+    return 'Звонок идёт...'
+  }
+  // ended
+  const dur = props.message.call_duration_sec
+  if (dur != null) {
+    if (dur < 60) return `Звонок · ${dur} сек`
+    const m = Math.floor(dur / 60)
+    const s = dur % 60
+    return s > 0 ? `Звонок · ${m} мин ${s} сек` : `Звонок · ${m} мин`
+  }
+  return 'Звонок завершён'
+})
 </script>
 
 <template>
@@ -181,8 +210,28 @@ const isMentioned = computed(() => {
         >{{ displayName }}</span>
         <span class="text-xs text-subtle">{{ time }}</span>
       </div>
+      <!-- Call-сообщение -->
+      <div
+        v-if="isCallMessage"
+        class="mt-1 inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm"
+        :class="message.call_status === 'missed' || message.call_status === 'cancelled'
+          ? 'bg-red-500/10 text-red-400'
+          : message.call_status === 'ringing' || message.call_status === 'ongoing'
+            ? 'bg-green-500/10 text-green-400'
+            : 'bg-elevated text-secondary'"
+      >
+        <svg
+          class="w-4 h-4 shrink-0"
+          fill="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path d="M6.62 10.79a15.09 15.09 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.47 11.47 0 003.58.57 1 1 0 011 1V21a1 1 0 01-1 1A17 17 0 013 5a1 1 0 011-1h3.5a1 1 0 011 1 11.47 11.47 0 00.57 3.58 1 1 0 01-.25 1.01l-2.2 2.2z" />
+        </svg>
+        <span>{{ callLabel }}</span>
+      </div>
+
       <img
-        v-if="isGiphyMedia"
+        v-else-if="isGiphyMedia"
         :src="message.content.trim()"
         class="mt-1 rounded-lg max-w-xs max-h-48 object-contain"
         loading="lazy"

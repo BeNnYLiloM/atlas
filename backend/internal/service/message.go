@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -85,6 +86,7 @@ func (s *MessageService) Create(ctx context.Context, input domain.MessageCreate,
 		UserID:    userID,
 		Content:   input.Content,
 		ParentID:  input.ParentID,
+		Type:      domain.MessageTypeText,
 	}
 
 	if err := s.messageRepo.Create(ctx, message); err != nil {
@@ -243,4 +245,77 @@ func (s *MessageService) GetThreadUnreadCount(ctx context.Context, parentMessage
 	}
 
 	return s.channelMemberRepo.GetThreadUnreadCount(ctx, userID, parentMessageID)
+}
+
+// CreateCallMessage создаёт системное сообщение о звонке в DM-канале.
+// Начальный статус = ringing (ждём ответа); меняется на missed/ongoing/ended через UpdateCallStatus.
+func (s *MessageService) CreateCallMessage(ctx context.Context, channelID, callerID string) (*domain.Message, error) {
+	status := domain.CallStatusRinging
+	msg := &domain.Message{
+		ID:          uuid.New().String(),
+		ChannelID:   channelID,
+		UserID:      callerID,
+		Content:     "",
+		Type:        domain.MessageTypeCall,
+		CallStatus:  &status,
+	}
+	if err := s.messageRepo.Create(ctx, msg); err != nil {
+		return nil, fmt.Errorf("CreateCallMessage: %w", err)
+	}
+	return s.messageRepo.GetByID(ctx, msg.ID)
+}
+
+// AcceptCallStatus вызывается получателем звонка (signal=accepted).
+// Проверяет что сообщение принадлежит данному каналу, переводит ringing→ongoing.
+// owner-check не применяется т.к. обновляет получатель, а не создатель.
+func (s *MessageService) AcceptCallStatus(ctx context.Context, messageID, channelID string) error {
+	// Безопасность: проверяем что сообщение принадлежит указанному каналу
+	msg, err := s.messageRepo.GetByID(ctx, messageID)
+	if err != nil {
+		return fmt.Errorf("AcceptCallStatus: %w", err)
+	}
+	if msg == nil || msg.ChannelID != channelID || msg.Type != domain.MessageTypeCall {
+		return fmt.Errorf("AcceptCallStatus: message not found in channel")
+	}
+	// Пустой callerID — owner-check пропускается в SQL, переход ringing→ongoing
+	if err := s.messageRepo.UpdateCallStatus(ctx, messageID, msg.UserID, domain.CallStatusOngoing, nil,
+		[]string{domain.CallStatusRinging}); err != nil {
+		return fmt.Errorf("AcceptCallStatus: %w", err)
+	}
+	return nil
+}
+
+// EndCallStatus вызывается любым участником DM (signal=ended/cancelled/missed).
+// Проверяет принадлежность канала, разрешает переходы ringing→missed/cancelled, ongoing→ended.
+func (s *MessageService) EndCallStatus(ctx context.Context, messageID, channelID, finalStatus string, durationSec *int) error {
+	allowedFinalStatuses := map[string]bool{
+		domain.CallStatusMissed:    true,
+		domain.CallStatusCancelled: true,
+		domain.CallStatusEnded:     true,
+	}
+	if !allowedFinalStatuses[finalStatus] {
+		return fmt.Errorf("EndCallStatus: invalid final status %q", finalStatus)
+	}
+
+	msg, err := s.messageRepo.GetByID(ctx, messageID)
+	if err != nil {
+		return fmt.Errorf("EndCallStatus: %w", err)
+	}
+	if msg == nil || msg.ChannelID != channelID || msg.Type != domain.MessageTypeCall {
+		return fmt.Errorf("EndCallStatus: message not found in channel")
+	}
+
+	// Определяем допустимые исходные статусы для данного перехода
+	var allowedFrom []string
+	switch finalStatus {
+	case domain.CallStatusEnded:
+		allowedFrom = []string{domain.CallStatusOngoing}
+	case domain.CallStatusMissed, domain.CallStatusCancelled:
+		allowedFrom = []string{domain.CallStatusRinging}
+	}
+
+	if err := s.messageRepo.UpdateCallStatus(ctx, messageID, msg.UserID, finalStatus, durationSec, allowedFrom); err != nil {
+		return fmt.Errorf("EndCallStatus: %w", err)
+	}
+	return nil
 }

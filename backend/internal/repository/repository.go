@@ -180,6 +180,7 @@ type MessageRepository interface {
 	GetByChannelID(ctx context.Context, channelID string, limit, offset int) ([]*domain.Message, error)
 	GetThreadMessages(ctx context.Context, parentID string) ([]*domain.Message, error)
 	Update(ctx context.Context, message *domain.Message) error
+	UpdateCallStatus(ctx context.Context, messageID, callerID, status string, durationSec *int, allowedFromStatuses []string) error
 	Delete(ctx context.Context, id string) error
 }
 

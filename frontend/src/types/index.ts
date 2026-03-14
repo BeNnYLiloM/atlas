@@ -220,15 +220,25 @@ export interface ChannelPermissions {
 }
 
 // Message types
+// MessageAuthor — публичные данные автора (без email, соответствует backend domain.MessageAuthor)
+export interface MessageAuthor {
+  id: string
+  display_name: string
+  avatar_url: string | null
+}
+
 export interface Message {
   id: string
   channel_id: string
   user_id: string
   content: string
   parent_id: string | null
+  type: 'text' | 'call'
+  call_status?: 'ringing' | 'cancelled' | 'missed' | 'ongoing' | 'ended'
+  call_duration_sec?: number
   created_at: string
   updated_at: string | null
-  user?: User
+  user?: MessageAuthor
   thread_replies_count?: number
   thread_unread_count?: number
 }

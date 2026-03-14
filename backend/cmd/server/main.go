@@ -116,7 +116,7 @@ func main() {
 	searchHandler := handler.NewSearchHandler(searchService)
 	reactionHandler := handler.NewReactionHandler(reactionService)
 	taskHandler := handler.NewTaskHandler(taskService)
-	callsHandler := handler.NewCallsHandler(liveKitService, authService, channelService, wsHub)
+	callsHandler := handler.NewCallsHandler(liveKitService, authService, channelService, messageService, wsHub)
 	projectHandler := handler.NewProjectHandler(projectService, channelService, channelCategoryRepo, fileService, wsHub)
 	projectHandler.RegisterRoutes(api, authMiddleware)
 
