@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -51,6 +52,25 @@ func (s *TaskService) Create(ctx context.Context, userID string, input *domain.T
 	if _, err := ensureWorkspaceMember(ctx, s.workspaceRepo, input.WorkspaceID, userID); err != nil {
 		return nil, err
 	}
+
+	// CRITICAL-2: project_id должен принадлежать тому же workspace, и пользователь должен быть членом проекта
+	if input.ProjectID != nil {
+		project, err := s.projectRepo.GetByID(ctx, *input.ProjectID)
+		if err != nil {
+			return nil, fmt.Errorf("get project: %w", err)
+		}
+		if project == nil || project.WorkspaceID != input.WorkspaceID {
+			return nil, ErrForbidden
+		}
+		pm, err := s.projectRepo.GetMember(ctx, *input.ProjectID, userID)
+		if err != nil {
+			return nil, fmt.Errorf("check project member: %w", err)
+		}
+		if pm == nil {
+			return nil, ErrForbidden
+		}
+	}
+
 	if input.AssigneeID != nil {
 		if _, err := ensureWorkspaceMember(ctx, s.workspaceRepo, input.WorkspaceID, *input.AssigneeID); err != nil {
 			return nil, err
@@ -101,9 +121,33 @@ func (s *TaskService) Create(ctx context.Context, userID string, input *domain.T
 }
 
 func (s *TaskService) GetByWorkspace(ctx context.Context, workspaceID, projectID, status, userID string) ([]*domain.Task, error) {
-	if _, err := ensureWorkspaceMember(ctx, s.workspaceRepo, workspaceID, userID); err != nil {
+	member, err := ensureWorkspaceMember(ctx, s.workspaceRepo, workspaceID, userID)
+	if err != nil {
 		return nil, err
 	}
+
+	// CRITICAL-3: если запрашиваются задачи конкретного проекта — проверяем membership
+	if projectID != "" {
+		// ws owner/admin видят всё
+		if member.Role != domain.RoleOwner && member.Role != domain.RoleAdmin {
+			pm, pmErr := s.projectRepo.GetMember(ctx, projectID, userID)
+			if pmErr != nil {
+				return nil, fmt.Errorf("check project member: %w", pmErr)
+			}
+			if pm == nil {
+				return nil, ErrForbidden
+			}
+		}
+		// Проверяем что проект принадлежит этому workspace (защита от cross-workspace)
+		project, pErr := s.projectRepo.GetByID(ctx, projectID)
+		if pErr != nil {
+			return nil, fmt.Errorf("get project: %w", pErr)
+		}
+		if project == nil || project.WorkspaceID != workspaceID {
+			return nil, ErrForbidden
+		}
+	}
+
 	return s.repo.GetByWorkspace(ctx, workspaceID, projectID, status)
 }
 

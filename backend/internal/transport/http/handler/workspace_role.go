@@ -135,14 +135,16 @@ func (h *WorkspaceRoleHandler) AssignRole(c *gin.Context) {
 	channels, _ := h.channelService.GetChannelsByRole(c.Request.Context(), body.RoleID)
 	go func() {
 		for _, ch := range channels {
-			// Канал проекта: отправляем только если targetUser состоит в проекте
+			// Канал проекта: отправляем только если targetUser состоит в проекте.
+			// GetMembers вызываем с actorID (userID) — для проверки прав на просмотр проекта.
 			if ch.ProjectID != nil {
-				members, err := h.projectService.GetMembers(context.Background(), *ch.ProjectID, userID)
+				actorID := userID
+				projectMembers, err := h.projectService.GetMembers(context.Background(), *ch.ProjectID, actorID)
 				if err != nil {
 					continue
 				}
 				inProject := false
-				for _, m := range members {
+				for _, m := range projectMembers {
 					if m.UserID == targetUserID {
 						inProject = true
 						break

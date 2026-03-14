@@ -45,11 +45,23 @@ func (h *TaskHandler) List(c *gin.Context) {
 		return
 	}
 
+	// MEDIUM-3: валидируем допустимые значения status
+	status := c.Query("status")
+	if status != "" {
+		switch domain.TaskStatus(status) {
+		case domain.TaskStatusTodo, domain.TaskStatusInProgress, domain.TaskStatusDone, domain.TaskStatusCancelled:
+			// допустимые значения
+		default:
+			response.BadRequest(c, "invalid status value")
+			return
+		}
+	}
+
 	tasks, err := h.taskService.GetByWorkspace(
 		c.Request.Context(),
 		workspaceID,
 		c.Query("project_id"),
-		c.Query("status"),
+		status,
 		middleware.GetUserID(c),
 	)
 	if err != nil {

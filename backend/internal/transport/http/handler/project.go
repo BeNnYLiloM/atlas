@@ -318,6 +318,14 @@ func (h *ProjectHandler) UploadIcon(c *gin.Context) {
 	projectID := c.Param("projectId")
 	userID := middleware.GetUserID(c)
 
+	// HIGH-1: проверяем права ДО загрузки файла
+	if _, err := h.projectService.GetByID(c.Request.Context(), projectID, userID); err != nil {
+		response.Error(c, err)
+		return
+	}
+	// canManageProject проверяется внутри Update, но GetByID уже подтверждает membership.
+	// Дополнительно вызываем canManage через Update ниже.
+
 	file, header, err := c.Request.FormFile("icon")
 	if err != nil {
 		response.BadRequest(c, "icon file is required")
@@ -325,9 +333,20 @@ func (h *ProjectHandler) UploadIcon(c *gin.Context) {
 	}
 	defer file.Close()
 
+	// HIGH-2: валидируем Content-Type — принимаем только изображения
 	contentType := header.Header.Get("Content-Type")
 	if contentType == "" {
 		contentType = "image/jpeg"
+	}
+	allowedTypes := map[string]bool{
+		"image/jpeg": true,
+		"image/png":  true,
+		"image/gif":  true,
+		"image/webp": true,
+	}
+	if !allowedTypes[contentType] {
+		response.BadRequest(c, "unsupported file type: only jpeg, png, gif, webp are allowed")
+		return
 	}
 
 	uploaded, err := h.fileService.Upload(c.Request.Context(), userID, header.Filename, file, header.Size, contentType)
