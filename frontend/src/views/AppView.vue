@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch } from 'vue'
-import { RouterView, useRouter } from 'vue-router'
+import { onMounted, onUnmounted, watch, computed } from 'vue'
+import { RouterView, useRouter, useRoute } from 'vue-router'
 import { useAuthStore, useWorkspaceStore, useChannelsStore, useWebSocketStore } from '@/stores'
+import { useProjectsStore } from '@/stores/projects'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import SearchBar from '@/components/search/SearchBar.vue'
 import ShortcutsModal from '@/components/settings/ShortcutsModal.vue'
@@ -13,7 +14,14 @@ const authStore = useAuthStore()
 const workspaceStore = useWorkspaceStore()
 const channelsStore = useChannelsStore()
 const wsStore = useWebSocketStore()
+const projectsStore = useProjectsStore()
 const router = useRouter()
+const route = useRoute()
+
+const isProjectRoute = computed(() =>
+  route.name === 'project' || route.name === 'project-channel' || route.name === 'project-tasks'
+)
+const activeProject = computed(() => isProjectRoute.value ? projectsStore.currentProject : null)
 
 // Статусы при которых AFK не вмешивается — пользователь сам выбрал
 const MANUAL_STATUSES: UserStatusValue[] = ['dnd', 'offline']
@@ -96,14 +104,27 @@ watch(
 
     if (newWorkspaceId) {
       wsStore.subscribeToWorkspace(newWorkspaceId)
-      await Promise.all([
-        channelsStore.fetchChannels(newWorkspaceId),
-        workspaceStore.fetchMembers(newWorkspaceId),
-      ])
+      // Не загружаем воркспейс-каналы если находимся в проекте —
+      // ProjectView сам загрузит нужные данные
+      const fetchTasks: Promise<unknown>[] = [workspaceStore.fetchMembers(newWorkspaceId)]
+      if (!isProjectRoute.value) {
+        fetchTasks.push(channelsStore.fetchChannels(newWorkspaceId))
+      }
+      await Promise.all(fetchTasks)
     }
   },
   { immediate: true }
 )
+
+// При выходе из проекта обратно в воркспейс — перезагрузить каналы воркспейса
+watch(isProjectRoute, async (inProject, wasInProject) => {
+  if (wasInProject && !inProject) {
+    const wsId = workspaceStore.currentWorkspaceId
+    if (wsId) {
+      await channelsStore.fetchChannels(wsId)
+    }
+  }
+})
 </script>
 
 <template>
@@ -112,9 +133,18 @@ watch(
 
     <main class="flex-1 flex flex-col min-w-0">
       <div class="h-12 flex items-center px-4 border-b border-subtle bg-base flex-shrink-0">
-        <div class="flex-1" />
-        <SearchBar />
-        <div class="flex-1" />
+        <template v-if="activeProject">
+          <span class="font-semibold text-primary truncate">
+            {{ activeProject.name }}
+            <span v-if="activeProject.is_archived" class="text-xs text-muted ml-2">(архив)</span>
+          </span>
+          <div class="flex-1" />
+        </template>
+        <template v-else>
+          <div class="flex-1" />
+          <SearchBar />
+          <div class="flex-1" />
+        </template>
       </div>
       <RouterView />
     </main>

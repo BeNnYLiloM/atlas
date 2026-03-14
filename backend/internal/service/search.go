@@ -13,6 +13,7 @@ type SearchService struct {
 	channelRepo   repository.ChannelRepository
 	roleRepo      repository.WorkspaceRoleRepository
 	permRepo      repository.ChannelPermissionRepository
+	projectRepo   repository.ProjectRepository
 }
 
 func NewSearchService(
@@ -21,6 +22,7 @@ func NewSearchService(
 	channelRepo repository.ChannelRepository,
 	roleRepo repository.WorkspaceRoleRepository,
 	permRepo repository.ChannelPermissionRepository,
+	projectRepo repository.ProjectRepository,
 ) *SearchService {
 	return &SearchService{
 		repo:          repo,
@@ -28,6 +30,7 @@ func NewSearchService(
 		channelRepo:   channelRepo,
 		roleRepo:      roleRepo,
 		permRepo:      permRepo,
+		projectRepo:   projectRepo,
 	}
 }
 
@@ -62,7 +65,7 @@ func (s *SearchService) Search(ctx context.Context, actorUserID string, params S
 	}
 
 	if params.ChannelID != "" {
-		channel, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, params.ChannelID, actorUserID)
+		channel, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, params.ChannelID, actorUserID)
 		if err != nil {
 			return nil, err
 		}

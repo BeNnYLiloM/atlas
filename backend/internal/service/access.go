@@ -28,6 +28,7 @@ func getAccessibleChannel(
 	workspaceRepo repository.WorkspaceRepository,
 	roleRepo repository.WorkspaceRoleRepository,
 	permRepo repository.ChannelPermissionRepository,
+	projectRepo repository.ProjectRepository,
 	channelID, userID string,
 ) (*domain.Channel, *domain.WorkspaceMember, error) {
 	channel, err := channelRepo.GetByID(ctx, channelID)
@@ -38,6 +39,12 @@ func getAccessibleChannel(
 		return nil, nil, ErrChannelNotFound
 	}
 
+	// Канал принадлежит проекту — отдельная ветка проверки доступа
+	if channel.ProjectID != nil {
+		return getAccessibleProjectChannel(ctx, channel, workspaceRepo, roleRepo, projectRepo, userID)
+	}
+
+	// Обычный воркспейс-канал — существующая логика
 	member, err := ensureWorkspaceMember(ctx, workspaceRepo, channel.WorkspaceID, userID)
 	if err != nil {
 		return nil, nil, err
@@ -62,6 +69,47 @@ func getAccessibleChannel(
 		return nil, nil, err
 	}
 	if !hasAccess {
+		return nil, nil, ErrForbidden
+	}
+
+	return channel, member, nil
+}
+
+// getAccessibleProjectChannel проверяет доступ к каналу проекта.
+// Порядок: ws owner → ViewAllProjects → project_members.
+func getAccessibleProjectChannel(
+	ctx context.Context,
+	channel *domain.Channel,
+	workspaceRepo repository.WorkspaceRepository,
+	roleRepo repository.WorkspaceRoleRepository,
+	projectRepo repository.ProjectRepository,
+	userID string,
+) (*domain.Channel, *domain.WorkspaceMember, error) {
+	member, err := ensureWorkspaceMember(ctx, workspaceRepo, channel.WorkspaceID, userID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// ws owner всегда имеет доступ
+	if member.Role == domain.RoleOwner {
+		return channel, member, nil
+	}
+
+	// Проверяем ViewAllProjects в эффективных правах
+	perms, err := roleRepo.GetEffectivePermissions(ctx, channel.WorkspaceID, userID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if perms.ViewAllProjects {
+		return channel, member, nil
+	}
+
+	// Проверяем членство в проекте
+	pm, err := projectRepo.GetMember(ctx, *channel.ProjectID, userID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if pm == nil {
 		return nil, nil, ErrForbidden
 	}
 

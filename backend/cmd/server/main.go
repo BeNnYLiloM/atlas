@@ -55,20 +55,22 @@ func main() {
 	searchRepo := postgres.NewSearchRepository(db)
 	reactionRepo := postgres.NewReactionRepository(db)
 	taskRepo := postgres.NewTaskRepository(db)
+	projectRepo := postgres.NewProjectRepo(db)
 
 	wsHub := ws.NewHub(userRepo)
 	go wsHub.Run()
 
 	authService := service.NewAuthService(userRepo, authSessionRepo, cfg.JWT)
-	workspaceService := service.NewWorkspaceService(workspaceRepo, channelRepo, roleRepo)
-	categoryService := service.NewChannelCategoryService(channelCategoryRepo, categoryPermRepo, channelRepo, workspaceRepo, roleRepo)
+	workspaceService := service.NewWorkspaceService(workspaceRepo, channelRepo, roleRepo, projectRepo)
+	categoryService := service.NewChannelCategoryService(channelCategoryRepo, categoryPermRepo, channelRepo, workspaceRepo, roleRepo, projectRepo)
 	roleService := service.NewWorkspaceRoleService(roleRepo, workspaceRepo)
-	channelService := service.NewChannelService(channelRepo, workspaceRepo, channelMemberRepo, channelPermRepo, roleRepo)
-	messageService := service.NewMessageService(messageRepo, channelRepo, workspaceRepo, channelMemberRepo, channelPermRepo, roleRepo)
+	channelService := service.NewChannelService(channelRepo, workspaceRepo, channelMemberRepo, channelPermRepo, roleRepo, projectRepo)
+	messageService := service.NewMessageService(messageRepo, channelRepo, workspaceRepo, channelMemberRepo, channelPermRepo, roleRepo, projectRepo)
+	projectService := service.NewProjectService(projectRepo, workspaceRepo, roleRepo, channelRepo, channelPermRepo, channelMemberRepo)
 	liveKitService := service.NewLiveKitService(cfg.LiveKit)
-	searchService := service.NewSearchService(searchRepo, workspaceRepo, channelRepo, roleRepo, channelPermRepo)
+	searchService := service.NewSearchService(searchRepo, workspaceRepo, channelRepo, roleRepo, channelPermRepo, projectRepo)
 	reactionService := service.NewReactionService(reactionRepo, wsHub)
-	taskService := service.NewTaskService(taskRepo, workspaceRepo, messageRepo, channelRepo, roleRepo, channelPermRepo)
+	taskService := service.NewTaskService(taskRepo, workspaceRepo, messageRepo, channelRepo, roleRepo, channelPermRepo, projectRepo)
 
 	minioStorage, minioErr := storage.NewMinIOStorage(
 		cfg.MinIO.Endpoint,
@@ -99,13 +101,13 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService, fileService, cfg.JWT, wsHub)
 	authHandler.RegisterRoutes(api, authMiddleware)
 
-	channelHandler := handler.NewChannelHandler(channelService, wsHub)
-	messageHandler := handler.NewMessageHandler(messageService, channelService, wsHub)
+	channelHandler := handler.NewChannelHandler(channelService, projectService, wsHub)
+	messageHandler := handler.NewMessageHandler(messageService, channelService, projectService, wsHub)
 	messageHandler.RegisterRoutes(api, authMiddleware)
 	channelHandler.RegisterWithMessages(api, authMiddleware, messageHandler)
 
 	workspaceHandler := handler.NewWorkspaceHandler(workspaceService, fileService, wsHub)
-	roleHandler := handler.NewWorkspaceRoleHandler(roleService, channelService, wsHub)
+	roleHandler := handler.NewWorkspaceRoleHandler(roleService, channelService, projectService, wsHub)
 	categoryHandler := handler.NewChannelCategoryHandler(categoryService, channelPermRepo, wsHub)
 	workspaceHandler.RegisterRoutes(api, authMiddleware, channelHandler, roleHandler, categoryHandler)
 
@@ -113,6 +115,8 @@ func main() {
 	reactionHandler := handler.NewReactionHandler(reactionService)
 	taskHandler := handler.NewTaskHandler(taskService)
 	callsHandler := handler.NewCallsHandler(liveKitService, authService)
+	projectHandler := handler.NewProjectHandler(projectService, channelService, channelCategoryRepo, fileService, wsHub)
+	projectHandler.RegisterRoutes(api, authMiddleware)
 
 	protected := api.Group("")
 	protected.Use(authMiddleware)

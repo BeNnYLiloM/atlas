@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useChannelsStore } from '@/stores'
 import { useWorkspaceStore } from '@/stores'
 import { useAuthStore } from '@/stores'
+import { useProjectsStore } from '@/stores/projects'
 import { channelsApi } from '@/api'
 import { Button, Input, Select, Checkbox } from '@/components/ui'
 import type { ChannelPermissions, NotificationLevel, WorkspaceRole } from '@/types'
@@ -19,6 +20,7 @@ const emit = defineEmits<{
 const channelsStore = useChannelsStore()
 const workspaceStore = useWorkspaceStore()
 const authStore = useAuthStore()
+const projectsStore = useProjectsStore()
 
 type Tab = 'overview' | 'permissions' | 'notifications'
 const activeTab = ref<Tab>('overview')
@@ -139,6 +141,9 @@ watch(activeTab, (tab) => {
   if (tab === 'permissions') {
     fetchPermissions()
     loadWsRoles()
+    if (channel.value?.project_id && !projectsStore.membersMap[channel.value.project_id]?.length) {
+      projectsStore.fetchMembers(channel.value.project_id)
+    }
   }
 })
 
@@ -149,18 +154,49 @@ async function loadWsRoles() {
   wsRoles.value = await rolesApi.list(wsId)
 }
 
-// Все не-системные роли воркспейса
-const allSelectableRoles = computed(() =>
-  wsRoles.value.filter(r => !r.is_system)
-)
+// Если канал принадлежит проекту — ограничиваем список только участниками проекта
+const isProjectChannel = computed(() => !!channel.value?.project_id)
 
-// Все участники воркспейса кроме owner/admin (они видят всё)
+const projectMemberUserIds = computed<Set<string>>(() => {
+  if (!isProjectChannel.value || !channel.value?.project_id) return new Set()
+  const members = projectsStore.membersMap[channel.value.project_id] ?? []
+  return new Set(members.map(m => m.user_id))
+})
+
+// Роли: для канала проекта показываем, но фильтруем по участникам проекта на бэкенде
+const allSelectableRoles = computed(() => {
+  return wsRoles.value.filter(r => !r.is_system)
+})
+
+// Количество участников проекта с данной ролью (для подсказки в UI)
+function projectMembersWithRole(roleId: string): number {
+  if (!isProjectChannel.value || !channel.value?.project_id) return 0
+  const members = projectsStore.membersMap[channel.value.project_id] ?? []
+  const wsId = workspaceStore.currentWorkspaceId
+  if (!wsId) return 0
+  const wsMembers = workspaceStore.membersMap[wsId] ?? []
+  const memberIds = new Set(members.map(m => m.user_id))
+  return wsMembers.filter(m => memberIds.has(m.user_id) && m.custom_roles?.some(r => r.id === roleId)).length
+}
+
+// Участники: для канала проекта — только участники этого проекта (кроме owner/admin, у них доступ автоматически)
 const allSelectableUsers = computed(() => {
   const wsId = workspaceStore.currentWorkspaceId
   if (!wsId) return []
-  const members = workspaceStore.membersMap[wsId] ?? []
+  const wsMembers = workspaceStore.membersMap[wsId] ?? []
   const q = userSearch.value.toLowerCase()
-  return members.filter(m =>
+
+  if (isProjectChannel.value) {
+    // Только участники проекта, не являющиеся owner/admin
+    return wsMembers.filter(m =>
+      m.role !== 'owner' &&
+      m.role !== 'admin' &&
+      projectMemberUserIds.value.has(m.user_id) &&
+      (q === '' || (m.nickname ?? m.display_name ?? '').toLowerCase().includes(q))
+    )
+  }
+
+  return wsMembers.filter(m =>
     m.role !== 'owner' &&
     m.role !== 'admin' &&
     (q === '' || (m.nickname ?? m.display_name ?? '').toLowerCase().includes(q))
@@ -572,6 +608,17 @@ const notifOptions: { value: NotificationLevel; label: string; description: stri
                 </p>
               </div>
 
+              <!-- Подсказка для канала проекта -->
+              <div
+                v-if="isProjectChannel"
+                class="flex items-center gap-2 p-3 bg-surface rounded-lg border border-subtle text-xs text-muted"
+              >
+                <svg class="w-4 h-4 shrink-0 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Канал принадлежит проекту — в списке только участники этого проекта
+              </div>
+
               <!-- Приватный: чекбокс-список -->
               <template v-if="channel.is_private">
                 <div
@@ -592,9 +639,16 @@ const notifOptions: { value: NotificationLevel; label: string; description: stri
                 <template v-else>
                   <!-- Роли -->
                   <div v-if="allSelectableRoles.length">
-                    <p class="text-xs font-semibold text-muted uppercase mb-2">
-                      Роли
-                    </p>
+                    <div class="flex items-center justify-between mb-2">
+                      <p class="text-xs font-semibold text-muted uppercase">
+                        Роли
+                      </p>
+                      <span
+                        v-if="isProjectChannel"
+                        class="text-xs text-muted"
+                        title="Роль предоставляет доступ только участникам проекта"
+                      >только участники проекта</span>
+                    </div>
                     <div class="space-y-1">
                       <div
                         v-for="role in allSelectableRoles"
@@ -615,6 +669,11 @@ const notifOptions: { value: NotificationLevel; label: string; description: stri
                           :style="{ backgroundColor: role.color }"
                         />
                         <span class="flex-1 text-sm text-primary">{{ role.name }}</span>
+                        <span
+                          v-if="isProjectChannel"
+                          class="text-xs text-muted"
+                          :title="`Участников проекта с этой ролью: ${projectMembersWithRole(role.id)}`"
+                        >{{ projectMembersWithRole(role.id) }} участн.</span>
                       </div>
                     </div>
                   </div>

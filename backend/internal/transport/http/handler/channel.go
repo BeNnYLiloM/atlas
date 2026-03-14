@@ -12,12 +12,14 @@ import (
 
 type ChannelHandler struct {
 	channelService *service.ChannelService
+	projectService *service.ProjectService
 	wsHub          *ws.Hub
 }
 
-func NewChannelHandler(channelService *service.ChannelService, wsHub *ws.Hub) *ChannelHandler {
+func NewChannelHandler(channelService *service.ChannelService, projectService *service.ProjectService, wsHub *ws.Hub) *ChannelHandler {
 	return &ChannelHandler{
 		channelService: channelService,
+		projectService: projectService,
 		wsHub:          wsHub,
 	}
 }
@@ -38,12 +40,22 @@ func (h *ChannelHandler) Create(c *gin.Context) {
 	}
 
 	// Для публичных каналов — broadcast всем, для приватных — только тем у кого есть доступ
-	if !channel.IsPrivate {
+	ctx := c.Request.Context()
+	if channel.ProjectID != nil {
+		// Проектный канал: уведомляем только участников проекта + view_all_projects
+		recipientIDs, _ := h.projectService.GetProjectMembersAndViewAll(ctx, *channel.ProjectID, channel.WorkspaceID)
+		filtered := make([]string, 0, len(recipientIDs))
+		for _, id := range recipientIDs {
+			if id != userID {
+				filtered = append(filtered, id)
+			}
+		}
+		h.wsHub.BroadcastToUsers(filtered, "channel_created", channel)
+	} else if !channel.IsPrivate {
 		h.wsHub.BroadcastToWorkspace(channel.WorkspaceID, "channel_created", channel, userID)
 	} else {
-		accessIDs, err := h.channelService.GetAccessibleUserIDs(c.Request.Context(), channel)
+		accessIDs, err := h.channelService.GetAccessibleUserIDs(ctx, channel)
 		if err == nil {
-			// Исключаем создателя из списка (он уже получил ответ)
 			filtered := make([]string, 0, len(accessIDs))
 			for _, id := range accessIDs {
 				if id != userID {
@@ -331,10 +343,26 @@ func (h *ChannelHandler) AddRolePermission(c *gin.Context) {
 		return
 	}
 
-	// Уведомляем всех участников с этой ролью о появлении канала
+	// Уведомляем участников с этой ролью о появлении канала.
+	// Для каналов проекта — только тех кто состоит в проекте,
+	// и добавляем их в channel_members.
 	if channel, err := h.channelService.GetByID(c.Request.Context(), channelID, userID); err == nil {
 		if roleUserIDs, err := h.channelService.GetRoleUserIDs(c.Request.Context(), input.RoleID); err == nil {
+			var projectMemberSet map[string]bool
+			if channel.ProjectID != nil {
+				if pm, err := h.projectService.GetMembers(c.Request.Context(), *channel.ProjectID, userID); err == nil {
+					projectMemberSet = make(map[string]bool, len(pm))
+					for _, m := range pm {
+						projectMemberSet[m.UserID] = true
+					}
+				}
+			}
 			for _, uid := range roleUserIDs {
+				if projectMemberSet != nil && !projectMemberSet[uid] {
+					continue
+				}
+				// Добавляем в channel_members чтобы канал был виден сразу
+				_ = h.channelService.AddUserToChannelMembers(c.Request.Context(), channelID, uid)
 				h.wsHub.SendToUser(uid, "channel_created", channel)
 			}
 		}

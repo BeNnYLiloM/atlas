@@ -7,6 +7,7 @@ import { useWorkspaceStore } from '@/stores/workspace'
 const props = defineProps<{
   messageId?: string
   initialTitle?: string
+  projectId?: string
 }>()
 
 const emit = defineEmits<{
@@ -34,6 +35,7 @@ async function submit() {
     await tasksApi.create({
       message_id: props.messageId,
       workspace_id: workspaceStore.currentWorkspaceId ?? '',
+      project_id: props.projectId,
       title: title.value.trim(),
       description: description.value || undefined,
       priority: priority.value,

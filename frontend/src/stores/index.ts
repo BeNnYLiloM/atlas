@@ -5,5 +5,4 @@ export { useMessagesStore } from './messages'
 export { useWebSocketStore } from './websocket'
 export { useThreadStore } from './thread'
 export { useUIStore } from './ui'
-
-
+export { useProjectsStore } from './projects'

@@ -16,13 +16,15 @@ import (
 type MessageHandler struct {
 	messageService *service.MessageService
 	channelService *service.ChannelService
+	projectService *service.ProjectService
 	wsHub          *ws.Hub
 }
 
-func NewMessageHandler(messageService *service.MessageService, channelService *service.ChannelService, wsHub *ws.Hub) *MessageHandler {
+func NewMessageHandler(messageService *service.MessageService, channelService *service.ChannelService, projectService *service.ProjectService, wsHub *ws.Hub) *MessageHandler {
 	return &MessageHandler{
 		messageService: messageService,
 		channelService: channelService,
+		projectService: projectService,
 		wsHub:          wsHub,
 	}
 }
@@ -42,33 +44,37 @@ func (h *MessageHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// Получаем канал чтобы знать workspaceID
+	// Получаем канал чтобы знать workspaceID и projectID
 	ctx := c.Request.Context()
 	channel, err := h.channelService.GetByID(ctx, message.ChannelID, userID)
 	if err == nil && channel != nil {
-		// Если это ответ в треде - отправляем специальное событие
+		// Для проектных каналов — рассылаем только участникам проекта + view_all_projects
+		broadcastFn := func(event string, data interface{}) {
+			if channel.ProjectID != nil {
+				recipientIDs, _ := h.projectService.GetProjectMembersAndViewAll(ctx, *channel.ProjectID, channel.WorkspaceID)
+				filtered := make([]string, 0, len(recipientIDs))
+				for _, id := range recipientIDs {
+					if id != userID {
+						filtered = append(filtered, id)
+					}
+				}
+				h.wsHub.BroadcastToUsers(filtered, event, data)
+			} else {
+				h.wsHub.BroadcastToWorkspace(channel.WorkspaceID, event, data, userID)
+			}
+		}
+
 		if message.ParentID != nil {
-			h.wsHub.BroadcastToWorkspace(
-				channel.WorkspaceID,
-				"thread_reply",
-				map[string]interface{}{
-					"channel_id": message.ChannelID,
-					"parent_id":  *message.ParentID,
-					"message":    message,
-				},
-				userID,
-			)
+			broadcastFn("thread_reply", map[string]interface{}{
+				"channel_id": message.ChannelID,
+				"parent_id":  *message.ParentID,
+				"message":    message,
+			})
 		} else {
-			// Обычное сообщение в канале
-			h.wsHub.BroadcastToWorkspace(
-				channel.WorkspaceID,
-				"message",
-				map[string]interface{}{
-					"channel_id": message.ChannelID,
-					"message":    message,
-				},
-				userID, // Исключаем отправителя
-			)
+			broadcastFn("message", map[string]interface{}{
+				"channel_id": message.ChannelID,
+				"message":    message,
+			})
 		}
 	}
 

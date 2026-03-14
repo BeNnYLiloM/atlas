@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 
@@ -13,13 +14,20 @@ type WorkspaceService struct {
 	workspaceRepo repository.WorkspaceRepository
 	channelRepo   repository.ChannelRepository
 	roleRepo      repository.WorkspaceRoleRepository
+	projectRepo   repository.ProjectRepository
 }
 
-func NewWorkspaceService(workspaceRepo repository.WorkspaceRepository, channelRepo repository.ChannelRepository, roleRepo repository.WorkspaceRoleRepository) *WorkspaceService {
+func NewWorkspaceService(
+	workspaceRepo repository.WorkspaceRepository,
+	channelRepo repository.ChannelRepository,
+	roleRepo repository.WorkspaceRoleRepository,
+	projectRepo repository.ProjectRepository,
+) *WorkspaceService {
 	return &WorkspaceService{
 		workspaceRepo: workspaceRepo,
 		channelRepo:   channelRepo,
 		roleRepo:      roleRepo,
+		projectRepo:   projectRepo,
 	}
 }
 
@@ -215,7 +223,14 @@ func (s *WorkspaceService) RemoveMember(ctx context.Context, workspaceID, target
 		return ErrForbidden
 	}
 
-	return s.workspaceRepo.RemoveMember(ctx, workspaceID, targetUserID)
+	if err := s.workspaceRepo.RemoveMember(ctx, workspaceID, targetUserID); err != nil {
+		return err
+	}
+	// Каскадно удаляем из всех проектов этого воркспейса
+	if err := s.projectRepo.RemoveMemberFromAllProjects(ctx, workspaceID, targetUserID); err != nil {
+		return fmt.Errorf("remove from projects: %w", err)
+	}
+	return nil
 }
 
 // Delete удаляет воркспейс

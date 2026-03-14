@@ -1,24 +1,37 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore, useWorkspaceStore, useChannelsStore } from '@/stores'
+import { useProjectsStore } from '@/stores/projects'
 import { Avatar, Modal, Input, Button } from '@/components/ui'
 import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
 import ChannelList from './ChannelList.vue'
 import CallPanel from '@/components/calls/CallPanel.vue'
 import WorkspaceSettingsModal from '@/components/workspace/WorkspaceSettingsModal.vue'
 import UserSettingsModal from '@/components/workspace/UserSettingsModal.vue'
+import ProjectList from '@/components/project/ProjectList.vue'
+import ProjectSidebar from '@/components/project/ProjectSidebar.vue'
 import { authApi } from '@/api/auth'
 import type { UserStatusValue } from '@/api/auth'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const workspaceStore = useWorkspaceStore()
 const channelsStore = useChannelsStore()
+const projectsStore = useProjectsStore()
+
+// Показываем ProjectSidebar когда находимся внутри проекта
+const isProjectRoute = computed(() =>
+  route.name === 'project' || route.name === 'project-channel' || route.name === 'project-tasks'
+)
 
 const showCreateChannel = ref(false)
 const showWorkspaceSettings = ref(false)
 const showUserSettings = ref(false)
+const showCreateProject = ref(false)
+const newProjectName = ref('')
+const creatingProject = ref(false)
 
 const currentUserRole = computed(() => {
   const wsId = workspaceStore.currentWorkspaceId
@@ -30,11 +43,64 @@ const currentUserRole = computed(() => {
 const isAdmin = computed(() =>
   currentUserRole.value === 'owner' || currentUserRole.value === 'admin'
 )
+
+const canCreateProject = computed(() => {
+  const role = currentUserRole.value
+  if (role === 'owner' || role === 'admin') return true
+  // TODO: проверка create_projects через effectivePermissions
+  return false
+})
+
+watch(
+  () => workspaceStore.currentWorkspaceId,
+  async (wsId) => {
+    if (wsId) {
+      await projectsStore.fetchProjects(wsId)
+    }
+  },
+  { immediate: true }
+)
+
+async function createProject() {
+  if (!newProjectName.value.trim() || !workspaceStore.currentWorkspaceId) return
+  creatingProject.value = true
+  try {
+    const project = await projectsStore.createProject(workspaceStore.currentWorkspaceId, {
+      name: newProjectName.value.trim(),
+    })
+    showCreateProject.value = false
+    newProjectName.value = ''
+    router.push({ name: 'project', params: { projectId: project.id } })
+  } finally {
+    creatingProject.value = false
+  }
+}
 const newChannelName = ref('')
 const newChannelType = ref<'text' | 'voice'>('text')
 const newChannelPrivate = ref(false)
 const newChannelCategoryId = ref<string | null>(null)
 const creatingChannel = ref(false)
+
+const showCreateCategory = ref(false)
+const newCategoryName = ref('')
+const newCategoryPrivate = ref(false)
+const creatingCategory = ref(false)
+
+async function createCategory() {
+  if (!newCategoryName.value.trim() || !workspaceStore.currentWorkspaceId) return
+  creatingCategory.value = true
+  try {
+    await channelsStore.createCategory(workspaceStore.currentWorkspaceId, {
+      name: newCategoryName.value.trim(),
+      is_private: newCategoryPrivate.value,
+    })
+    showCreateCategory.value = false
+    newCategoryName.value = ''
+    newCategoryPrivate.value = false
+  } finally {
+    creatingCategory.value = false
+  }
+}
 
 function normalizeChannelName(value: string) {
   return value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-zа-яё0-9-]/gi, '')
@@ -111,56 +177,37 @@ async function logout() {
   <aside class="w-64 flex flex-col bg-surface border-r border-subtle">
     <WorkspaceSwitcher />
 
-    <div class="flex-1 overflow-y-auto">
-      <ChannelList @create-channel="showCreateChannel = true" />
-    </div>
+    <!-- Режим проекта: показываем ProjectSidebar вместо списка каналов -->
+    <template v-if="isProjectRoute">
+      <ProjectSidebar class="flex-1 min-h-0" />
+    </template>
 
-    <CallPanel />
+    <!-- Обычный режим воркспейса -->
+    <template v-else>
+      <div class="flex-1 overflow-y-auto">
+        <ChannelList @create-channel="showCreateChannel = true" />
 
-    <div class="p-3 border-t border-subtle space-y-1">
-      <RouterLink
-        to="/tasks"
-        class="nav-item"
-        active-class="active"
-      >
-        <svg
-          class="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-          />
-        </svg>
-        Задачи
-      </RouterLink>
-      <template v-if="isAdmin">
-        <button
-          class="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm text-muted hover:text-primary hover:bg-elevated transition-colors"
-          @click="showCreateChannel = true"
-        >
-          <svg
-            class="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          Создать канал
-        </button>
-        <button
-          class="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm text-muted hover:text-primary hover:bg-elevated transition-colors"
-          @click="showWorkspaceSettings = true"
+        <!-- Секция проектов -->
+        <div class="mt-2">
+          <ProjectList />
+          <div v-if="canCreateProject" class="px-3 mt-1">
+            <button
+              class="w-full text-left px-2 py-1 text-xs text-muted hover:text-primary transition-colors"
+              @click="showCreateProject = true"
+            >
+              + Создать проект
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <CallPanel />
+
+      <div class="p-3 border-t border-subtle space-y-1">
+        <RouterLink
+          to="/tasks"
+          class="nav-item"
+          active-class="active"
         >
           <svg
             class="w-4 h-4"
@@ -172,21 +219,80 @@ async function logout() {
               stroke-linecap="round"
               stroke-linejoin="round"
               stroke-width="2"
-              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-            />
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
             />
           </svg>
-          Настройки воркспейса
-        </button>
-      </template>
-    </div>
+          Задачи
+        </RouterLink>
+        <template v-if="isAdmin">
+          <button
+            class="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm text-muted hover:text-primary hover:bg-elevated transition-colors"
+            @click="showCreateChannel = true"
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            Создать канал
+          </button>
+          <button
+            class="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm text-muted hover:text-primary hover:bg-elevated transition-colors"
+            @click="showCreateCategory = true"
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
+              />
+            </svg>
+            Создать категорию
+          </button>
+          <button
+            class="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm text-muted hover:text-primary hover:bg-elevated transition-colors"
+            @click="showWorkspaceSettings = true"
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+            Настройки воркспейса
+          </button>
+        </template>
+      </div>
+    </template>
 
-    <!-- User panel -->
+    <!-- User panel — всегда виден -->
     <div class="relative p-3 border-t border-subtle">
       <!-- Status context menu -->
       <Transition
@@ -406,6 +512,55 @@ async function logout() {
           >
             Создать
           </Button>
+        </div>
+      </form>
+    </Modal>
+
+    <!-- Модал создания проекта -->
+    <Modal :open="showCreateProject" title="Создать проект" @close="showCreateProject = false">
+      <form @submit.prevent="createProject">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm text-muted mb-1">Название проекта</label>
+            <Input
+              v-model="newProjectName"
+              placeholder="Мой проект"
+              maxlength="100"
+              required
+            />
+          </div>
+          <div class="flex gap-3 pt-2">
+            <Button variant="secondary" class="flex-1" @click="showCreateProject = false">Отмена</Button>
+            <Button type="submit" :loading="creatingProject" class="flex-1">Создать</Button>
+          </div>
+        </div>
+        </form>
+    </Modal>
+
+    <Modal :open="showCreateCategory" title="Создать категорию" @close="showCreateCategory = false">
+      <form class="space-y-4" @submit.prevent="createCategory">
+        <Input v-model="newCategoryName" label="Название категории" placeholder="Разработка" required />
+        <div
+          class="flex items-center justify-between p-3 rounded-lg cursor-pointer select-none"
+          :class="newCategoryPrivate ? 'bg-accent-dim border border-accent-dim' : 'bg-elevated border border-default'"
+          @click="newCategoryPrivate = !newCategoryPrivate"
+        >
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-muted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <div>
+              <p class="text-sm font-medium text-primary">Приватная категория</p>
+              <p class="text-xs text-subtle">Только приглашённые участники</p>
+            </div>
+          </div>
+          <div class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0" :class="newCategoryPrivate ? 'bg-accent' : 'bg-muted-fill'">
+            <span class="inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform" :class="newCategoryPrivate ? 'translate-x-[18px]' : 'translate-x-[3px]'" />
+          </div>
+        </div>
+        <div class="flex gap-3 pt-2">
+          <Button variant="secondary" class="flex-1" @click="showCreateCategory = false">Отмена</Button>
+          <Button type="submit" :loading="creatingCategory" class="flex-1">Создать</Button>
         </div>
       </form>
     </Modal>

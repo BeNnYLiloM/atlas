@@ -34,6 +34,7 @@ func (s *WorkspaceRoleService) InitSystemRoles(ctx context.Context, workspaceID 
 				ManageMembers: true, ViewAuditLog: true,
 				SendMessages: true, AttachFiles: true, MentionEveryone: true,
 				ManageMessages: true, ViewChannels: true,
+				CreateProjects: true, ViewAllProjects: true,
 			},
 		},
 		{
@@ -48,6 +49,7 @@ func (s *WorkspaceRoleService) InitSystemRoles(ctx context.Context, workspaceID 
 				ManageMembers: true, ViewAuditLog: true,
 				SendMessages: true, AttachFiles: true, MentionEveryone: true,
 				ManageMessages: true, ViewChannels: true,
+				CreateProjects: true, ViewAllProjects: true,
 			},
 		},
 		{

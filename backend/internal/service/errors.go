@@ -17,4 +17,8 @@ var (
 	ErrNotMember          = errors.New("user is not a member of workspace")
 	ErrNotFound           = errors.New("not found")
 	ErrSlowmode           = errors.New("slowmode: wait before sending next message")
+	ErrProjectNotFound    = errors.New("project not found")
+	ErrNotProjectMember   = errors.New("user is not a member of this project")
+	ErrProjectArchived    = errors.New("project is archived")
+	ErrLastLead           = errors.New("cannot remove the last lead from a project")
 )

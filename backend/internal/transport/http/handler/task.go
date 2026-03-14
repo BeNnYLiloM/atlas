@@ -37,7 +37,7 @@ func (h *TaskHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"data": task})
 }
 
-// List GET /api/v1/tasks?workspace_id=uuid&status=todo
+// List GET /api/v1/tasks?workspace_id=uuid&project_id=uuid&status=todo
 func (h *TaskHandler) List(c *gin.Context) {
 	workspaceID := c.Query("workspace_id")
 	if workspaceID == "" {
@@ -45,7 +45,13 @@ func (h *TaskHandler) List(c *gin.Context) {
 		return
 	}
 
-	tasks, err := h.taskService.GetByWorkspace(c.Request.Context(), workspaceID, c.Query("status"), middleware.GetUserID(c))
+	tasks, err := h.taskService.GetByWorkspace(
+		c.Request.Context(),
+		workspaceID,
+		c.Query("project_id"),
+		c.Query("status"),
+		middleware.GetUserID(c),
+	)
 	if err != nil {
 		response.Error(c, err)
 		return

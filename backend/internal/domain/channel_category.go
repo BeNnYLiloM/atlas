@@ -8,13 +8,15 @@ type ChannelCategory struct {
 	Name        string    `json:"name" db:"name"`
 	Position    int       `json:"position" db:"position"`
 	IsPrivate   bool      `json:"is_private" db:"is_private"`
+	ProjectID   *string   `json:"project_id" db:"project_id"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 }
 
 type ChannelCategoryCreate struct {
-	WorkspaceID string `json:"workspace_id"`
-	Name        string `json:"name" validate:"required,min=1,max=100"`
-	IsPrivate   bool   `json:"is_private"`
+	WorkspaceID string  `json:"workspace_id"`
+	Name        string  `json:"name" validate:"required,min=1,max=100"`
+	IsPrivate   bool    `json:"is_private"`
+	ProjectID   *string `json:"project_id"`
 }
 
 type ChannelCategoryUpdate struct {

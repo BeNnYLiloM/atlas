@@ -27,6 +27,7 @@ type ChannelService struct {
 	channelMemberRepo repository.ChannelMemberRepository
 	permRepo          repository.ChannelPermissionRepository
 	roleRepo          repository.WorkspaceRoleRepository
+	projectRepo       repository.ProjectRepository
 }
 
 func NewChannelService(
@@ -35,6 +36,7 @@ func NewChannelService(
 	channelMemberRepo repository.ChannelMemberRepository,
 	permRepo repository.ChannelPermissionRepository,
 	roleRepo repository.WorkspaceRoleRepository,
+	projectRepo repository.ProjectRepository,
 ) *ChannelService {
 	return &ChannelService{
 		channelRepo:       channelRepo,
@@ -42,12 +44,12 @@ func NewChannelService(
 		channelMemberRepo: channelMemberRepo,
 		permRepo:          permRepo,
 		roleRepo:          roleRepo,
+		projectRepo:       projectRepo,
 	}
 }
 
 // Create создает новый канал
 func (s *ChannelService) Create(ctx context.Context, input domain.ChannelCreate, userID string) (*domain.Channel, error) {
-	// Проверяем членство и права
 	member, err := s.workspaceRepo.GetMember(ctx, input.WorkspaceID, userID)
 	if err != nil {
 		return nil, err
@@ -56,9 +58,35 @@ func (s *ChannelService) Create(ctx context.Context, input domain.ChannelCreate,
 		return nil, ErrNotMember
 	}
 
-	// Только owner и admin могут создавать каналы
-	if member.Role == domain.RoleMember {
-		return nil, ErrForbidden
+	if input.ProjectID != nil {
+		// Канал проекта: нужны права лида или ws ManageChannels
+		project, err := s.projectRepo.GetByID(ctx, *input.ProjectID)
+		if err != nil || project == nil {
+			return nil, ErrProjectNotFound
+		}
+		if project.WorkspaceID != input.WorkspaceID {
+			return nil, ErrForbidden
+		}
+		if project.IsArchived {
+			return nil, ErrProjectArchived
+		}
+		if member.Role != domain.RoleOwner {
+			perms, err := s.roleRepo.GetEffectivePermissions(ctx, input.WorkspaceID, userID)
+			if err != nil {
+				return nil, err
+			}
+			if !perms.ManageChannels {
+				pm, err := s.projectRepo.GetMember(ctx, *input.ProjectID, userID)
+				if err != nil || pm == nil || !pm.IsLead {
+					return nil, ErrForbidden
+				}
+			}
+		}
+	} else {
+		// Воркспейс-канал: только owner и admin
+		if member.Role == domain.RoleMember {
+			return nil, ErrForbidden
+		}
 	}
 
 	channel := &domain.Channel{
@@ -68,10 +96,50 @@ func (s *ChannelService) Create(ctx context.Context, input domain.ChannelCreate,
 		Type:        input.Type,
 		IsPrivate:   input.IsPrivate,
 		CategoryID:  input.CategoryID,
+		ProjectID:   input.ProjectID,
 	}
 
 	if err := s.channelRepo.Create(ctx, channel); err != nil {
 		return nil, err
+	}
+
+	if input.IsPrivate {
+		// Приватный канал: добавляем создателя + всех owner/admin воркспейса.
+		wsMembers, err := s.workspaceRepo.GetMembers(ctx, input.WorkspaceID)
+		if err != nil {
+			return nil, err
+		}
+		addedUsers := map[string]bool{userID: true}
+		_ = s.channelMemberRepo.UpsertMember(ctx, userID, channel.ID)
+		for _, wm := range wsMembers {
+			if (wm.Role == domain.RoleOwner || wm.Role == domain.RoleAdmin) && !addedUsers[wm.UserID] {
+				addedUsers[wm.UserID] = true
+				_ = s.channelMemberRepo.UpsertMember(ctx, wm.UserID, channel.ID)
+			}
+		}
+		// Для приватного канала проекта дополнительно добавляем lead-ов проекта.
+		if input.ProjectID != nil {
+			projMembers, err := s.projectRepo.GetMembers(ctx, *input.ProjectID)
+			if err != nil {
+				return nil, err
+			}
+			for _, pm := range projMembers {
+				if pm.IsLead && !addedUsers[pm.UserID] {
+					addedUsers[pm.UserID] = true
+					_ = s.channelMemberRepo.UpsertMember(ctx, pm.UserID, channel.ID)
+				}
+			}
+		}
+	} else if input.ProjectID != nil {
+		// Публичный канал проекта — добавляем участников проекта.
+		// Воркспейс-каналы обрабатывает триггер БД.
+		members, err := s.projectRepo.GetMembers(ctx, *input.ProjectID)
+		if err != nil {
+			return nil, err
+		}
+		for _, pm := range members {
+			_ = s.channelMemberRepo.UpsertMember(ctx, pm.UserID, channel.ID)
+		}
 	}
 
 	return channel, nil
@@ -79,14 +147,14 @@ func (s *ChannelService) Create(ctx context.Context, input domain.ChannelCreate,
 
 // GetByID возвращает канал по ID
 func (s *ChannelService) GetByID(ctx context.Context, channelID, userID string) (*domain.Channel, error) {
-	channel, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, channelID, userID)
+	channel, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, channelID, userID)
 	if err != nil {
 		return nil, err
 	}
 	return channel, nil
 }
 
-// GetByWorkspaceID возвращает каналы воркспейса, доступные пользователю
+// GetByWorkspaceID возвращает каналы воркспейса (project_id IS NULL), доступные пользователю
 func (s *ChannelService) GetByWorkspaceID(ctx context.Context, workspaceID, userID string) ([]*domain.Channel, error) {
 	member, err := s.workspaceRepo.GetMember(ctx, workspaceID, userID)
 	if err != nil {
@@ -96,9 +164,13 @@ func (s *ChannelService) GetByWorkspaceID(ctx context.Context, workspaceID, user
 		return nil, ErrNotMember
 	}
 
-	// owner и admin видят все каналы включая приватные
+	// owner и admin видят все каналы включая приватные (только воркспейс-каналы)
 	if member.Role == domain.RoleOwner || member.Role == domain.RoleAdmin {
-		return s.channelRepo.GetByWorkspaceID(ctx, workspaceID)
+		all, err := s.channelRepo.GetByWorkspaceID(ctx, workspaceID)
+		if err != nil {
+			return nil, err
+		}
+		return filterWorkspaceChannels(all), nil
 	}
 
 	// Для остальных — получаем их кастомные роли и фильтруем
@@ -111,7 +183,51 @@ func (s *ChannelService) GetByWorkspaceID(ctx context.Context, workspaceID, user
 		roleIDs = append(roleIDs, r.ID)
 	}
 
-	return s.channelRepo.GetVisibleByWorkspaceID(ctx, workspaceID, userID, roleIDs)
+	all, err := s.channelRepo.GetVisibleByWorkspaceID(ctx, workspaceID, userID, roleIDs)
+	if err != nil {
+		return nil, err
+	}
+	return filterWorkspaceChannels(all), nil
+}
+
+// filterWorkspaceChannels оставляет только каналы без project_id
+func filterWorkspaceChannels(channels []*domain.Channel) []*domain.Channel {
+	result := make([]*domain.Channel, 0, len(channels))
+	for _, ch := range channels {
+		if ch.ProjectID == nil {
+			result = append(result, ch)
+		}
+	}
+	return result
+}
+
+// GetByProjectIDWithUnread возвращает каналы проекта с unread counts для userID.
+func (s *ChannelService) GetByProjectIDWithUnread(ctx context.Context, projectID, workspaceID, userID string) ([]*domain.ChannelWithUnread, error) {
+	channels, err := s.channelRepo.GetByProjectID(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	stats, err := s.channelMemberRepo.GetUnreadCountsForWorkspace(ctx, userID, workspaceID)
+	if err != nil {
+		stats = make(map[string]domain.ChannelStats)
+	}
+
+	result := make([]*domain.ChannelWithUnread, len(channels))
+	for i, ch := range channels {
+		st := stats[ch.ID]
+		notifLevel := st.NotificationLevel
+		if notifLevel == "" {
+			notifLevel = domain.NotificationAll
+		}
+		result[i] = &domain.ChannelWithUnread{
+			Channel:           ch,
+			UnreadCount:       st.UnreadCount,
+			MentionCount:      st.MentionCount,
+			NotificationLevel: notifLevel,
+		}
+	}
+	return result, nil
 }
 
 // GetByWorkspaceIDWithUnread возвращает каналы с количеством непрочитанных и уровнем уведомлений
@@ -176,7 +292,7 @@ func (s *ChannelService) Update(ctx context.Context, channelID string, input dom
 
 // UpdateNotifications обновляет уровень уведомлений текущего пользователя в канале
 func (s *ChannelService) UpdateNotifications(ctx context.Context, channelID, userID, level string) error {
-	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, channelID, userID); err != nil {
+	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, channelID, userID); err != nil {
 		return err
 	}
 
@@ -234,7 +350,7 @@ func (s *ChannelService) GetUnreadCount(ctx context.Context, channelID, userID s
 
 // GetChannelMembers возвращает участников канала
 func (s *ChannelService) GetChannelMembers(ctx context.Context, channelID, userID string) ([]*domain.ChannelMemberInfo, error) {
-	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, channelID, userID); err != nil {
+	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, channelID, userID); err != nil {
 		return nil, err
 	}
 
@@ -384,6 +500,11 @@ func (s *ChannelService) GetChannelsByRole(ctx context.Context, roleID string) (
 	return s.permRepo.GetChannelsByRole(ctx, roleID)
 }
 
+// AddUserToChannelMembers добавляет пользователя в channel_members напрямую
+func (s *ChannelService) AddUserToChannelMembers(ctx context.Context, channelID, userID string) error {
+	return s.channelMemberRepo.UpsertMember(ctx, userID, channelID)
+}
+
 // GetAccessibleUserIDs возвращает список userID участников воркспейса, которым виден канал.
 // Для публичных — все участники. Для приватных — owner/admin + те у кого явный доступ или нужная роль.
 func (s *ChannelService) GetAccessibleUserIDs(ctx context.Context, channel *domain.Channel) ([]string, error) {
@@ -446,7 +567,7 @@ func (s *ChannelService) GetAccessibleUserIDs(ctx context.Context, channel *doma
 
 // CanUserWrite — все участники могут писать в публичные каналы
 func (s *ChannelService) CanUserWrite(ctx context.Context, channelID, userID string) (bool, error) {
-	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, channelID, userID); err != nil {
+	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, channelID, userID); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -464,7 +585,7 @@ func (s *ChannelService) CanAccessWorkspace(ctx context.Context, workspaceID, us
 }
 
 func (s *ChannelService) CanAccessChannel(ctx context.Context, channelID, userID string) (bool, error) {
-	_, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, channelID, userID)
+	_, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, channelID, userID)
 	if err != nil {
 		if err == ErrForbidden || err == ErrNotMember || err == ErrChannelNotFound {
 			return false, nil

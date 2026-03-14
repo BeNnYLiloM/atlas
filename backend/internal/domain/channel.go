@@ -14,6 +14,7 @@ type Channel struct {
 	SlowmodeSeconds int       `json:"slowmode_seconds" db:"slowmode_seconds"`
 	Position        int       `json:"position" db:"position"`
 	CategoryID      *string   `json:"category_id" db:"category_id"`
+	ProjectID      *string   `json:"project_id" db:"project_id"`
 	CreatedAt       time.Time `json:"created_at" db:"created_at"`
 }
 
@@ -23,6 +24,7 @@ type ChannelCreate struct {
 	Type        string  `json:"type" validate:"required,oneof=text voice"`
 	IsPrivate   bool    `json:"is_private"`
 	CategoryID  *string `json:"category_id"`
+	ProjectID   *string `json:"project_id"`
 }
 
 type ChannelUpdate struct {

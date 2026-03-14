@@ -72,6 +72,18 @@ func Error(c *gin.Context, err error) {
 	case errors.Is(err, service.ErrNotMember):
 		status = http.StatusForbidden
 		message = "not a member of workspace"
+	case errors.Is(err, service.ErrProjectNotFound):
+		status = http.StatusNotFound
+		message = "project not found"
+	case errors.Is(err, service.ErrNotProjectMember):
+		status = http.StatusForbidden
+		message = "not a member of this project"
+	case errors.Is(err, service.ErrProjectArchived):
+		status = http.StatusForbidden
+		message = "project is archived"
+	case errors.Is(err, service.ErrLastLead):
+		status = http.StatusConflict
+		message = "cannot remove the last lead from a project"
 	}
 
 	c.JSON(status, ErrorResponse{Error: message})

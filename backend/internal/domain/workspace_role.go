@@ -19,6 +19,10 @@ type RolePermissions struct {
 
 	// Видимость
 	ViewChannels bool `json:"view_channels"` // видеть публичные каналы
+
+	// Проекты
+	CreateProjects  bool `json:"create_projects"`   // создавать проекты в воркспейсе
+	ViewAllProjects bool `json:"view_all_projects"`  // видеть все проекты воркспейса
 }
 
 // DefaultEveryonePermissions — права @everyone по умолчанию

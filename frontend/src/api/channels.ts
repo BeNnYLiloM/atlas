@@ -7,6 +7,11 @@ export const channelsApi = {
     return response.data.data ?? []
   },
 
+  async listByProject(projectId: string): Promise<ChannelWithUnread[]> {
+    const response = await apiClient.get<ApiResponse<ChannelWithUnread[]>>(`/projects/${projectId}/channels`)
+    return response.data.data ?? []
+  },
+
   async get(channelId: string): Promise<Channel> {
     const response = await apiClient.get<ApiResponse<Channel>>(`/channels/${channelId}`)
     return response.data.data

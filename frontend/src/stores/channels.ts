@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { channelsApi, categoriesApi } from '@/api'
-import type { Channel, ChannelCategory, ChannelCreate, ChannelUpdate, ChannelWithUnread, NotificationLevel } from '@/types'
+import type { Channel, ChannelCategory, ChannelCategoryCreate, ChannelCreate, ChannelUpdate, ChannelWithUnread, NotificationLevel } from '@/types'
 
 function toChannelWithUnread(channel: Channel, unreadCount = 0, mentionCount = 0, notificationLevel: NotificationLevel = 'all'): ChannelWithUnread {
   return {
@@ -42,7 +42,9 @@ export const useChannelsStore = defineStore('channels', () => {
 
   async function fetchCategories(workspaceId: string) {
     try {
-      categories.value = await categoriesApi.list(workspaceId)
+      const all = await categoriesApi.list(workspaceId)
+      // В воркспейс-контексте показываем только категории без project_id
+      categories.value = all.filter(c => c.project_id === null)
     } catch {
       categories.value = []
     }
@@ -53,8 +55,9 @@ export const useChannelsStore = defineStore('channels', () => {
     error.value = null
     try {
       await fetchCategories(workspaceId)
-      channels.value = await channelsApi.list(workspaceId)
-      // Инициализируем notificationLevels и mentionCounts из данных каналов
+      const all = await channelsApi.list(workspaceId)
+      // В воркспейс-контексте показываем только каналы без project_id
+      channels.value = all.filter(ch => ch.project_id === null)
       for (const ch of channels.value) {
         if (ch.notification_level) {
           notificationLevels.value[ch.id] = ch.notification_level
@@ -63,6 +66,52 @@ export const useChannelsStore = defineStore('channels', () => {
       }
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Ошибка загрузки каналов'
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function createCategory(workspaceId: string, data: ChannelCategoryCreate): Promise<ChannelCategory> {
+    const cat = await categoriesApi.create(workspaceId, data)
+    addCategory(cat)
+    return cat
+  }
+
+  async function renameCategory(workspaceId: string, categoryId: string, name: string): Promise<void> {
+    const updated = await categoriesApi.update(workspaceId, categoryId, { name })
+    const idx = categories.value.findIndex(c => c.id === categoryId)
+    if (idx !== -1) categories.value[idx] = updated
+  }
+
+  async function toggleCategoryPrivacy(workspaceId: string, categoryId: string, isPrivate: boolean): Promise<void> {
+    const updated = await categoriesApi.update(workspaceId, categoryId, { is_private: isPrivate })
+    const idx = categories.value.findIndex(c => c.id === categoryId)
+    if (idx !== -1) categories.value[idx] = updated
+  }
+
+  async function deleteCategory(workspaceId: string, categoryId: string): Promise<void> {
+    await categoriesApi.delete(workspaceId, categoryId)
+    removeCategory(categoryId)
+  }
+
+  async function fetchProjectChannels(_workspaceId: string, projectId: string) {
+    loading.value = true
+    error.value = null
+    try {
+      const [projectCats, projectChannels] = await Promise.all([
+        categoriesApi.listByProject(projectId),
+        channelsApi.listByProject(projectId),
+      ])
+      categories.value = projectCats
+      channels.value = projectChannels
+      for (const ch of channels.value) {
+        if (ch.notification_level) {
+          notificationLevels.value[ch.id] = ch.notification_level
+        }
+        mentionCounts.value[ch.id] = ch.mention_count ?? 0
+      }
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Ошибка загрузки каналов проекта'
     } finally {
       loading.value = false
     }
@@ -274,7 +323,12 @@ export const useChannelsStore = defineStore('channels', () => {
     incrementMention,
     fetchChannels,
     fetchCategories,
+    fetchProjectChannels,
     createChannel,
+    createCategory,
+    renameCategory,
+    toggleCategoryPrivacy,
+    deleteCategory,
     deleteChannel,
     updateChannelSettings,
     updateNotifications,

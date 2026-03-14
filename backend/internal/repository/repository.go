@@ -75,6 +75,8 @@ type ChannelRepository interface {
 	// GetVisibleByWorkspaceID — только каналы доступные пользователю:
 	// публичные + приватные где у него есть явный доступ или его роль добавлена
 	GetVisibleByWorkspaceID(ctx context.Context, workspaceID, userID string, roleIDs []string) ([]*domain.Channel, error)
+	// GetByProjectID — каналы принадлежащие проекту
+	GetByProjectID(ctx context.Context, projectID string) ([]*domain.Channel, error)
 	Update(ctx context.Context, id string, update *domain.ChannelUpdate) (*domain.Channel, error)
 	Delete(ctx context.Context, id string) error
 }
@@ -138,6 +140,25 @@ type SearchFilter struct {
 // Будущая: Elasticsearch, Typesense и др. — без изменений в сервисе.
 type SearchRepository interface {
 	Search(ctx context.Context, filter SearchFilter) ([]*SearchResult, int, error)
+}
+
+// ProjectRepository - интерфейс для работы с проектами
+type ProjectRepository interface {
+	Create(ctx context.Context, project *domain.Project) error
+	GetByID(ctx context.Context, id string) (*domain.Project, error)
+	GetByWorkspaceID(ctx context.Context, workspaceID string) ([]*domain.Project, error)
+	Update(ctx context.Context, id string, update *domain.ProjectUpdate) (*domain.Project, error)
+	Delete(ctx context.Context, id string) error
+	SetArchived(ctx context.Context, id string, archived bool) error
+
+	AddMember(ctx context.Context, member *domain.ProjectMember) error
+	RemoveMember(ctx context.Context, projectID, userID string) error
+	GetMembers(ctx context.Context, projectID string) ([]*domain.ProjectMember, error)
+	GetMember(ctx context.Context, projectID, userID string) (*domain.ProjectMember, error)
+	RemoveMemberFromAllProjects(ctx context.Context, workspaceID, userID string) error
+
+	SetLead(ctx context.Context, projectID, userID string, isLead bool) error
+	GetLeadCount(ctx context.Context, projectID string) (int, error)
 }
 
 // MessageRepository - интерфейс для работы с сообщениями
