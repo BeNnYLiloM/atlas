@@ -38,7 +38,26 @@ type ChannelUpdate struct {
 const (
 	ChannelTypeText  = "text"
 	ChannelTypeVoice = "voice"
+	ChannelTypeDM    = "dm"
 )
+
+// DMChannel — view-модель личного диалога с данными собеседника
+type DMChannel struct {
+	ChannelID     string     `json:"channel_id"      db:"channel_id"`
+	WorkspaceID   string     `json:"workspace_id"    db:"workspace_id"`
+	Peer          DMPeer     `json:"peer"`
+	UnreadCount   int        `json:"unread_count"    db:"unread_count"`
+	LastMessageAt *time.Time `json:"last_message_at" db:"last_message_at"`
+	CreatedAt     time.Time  `json:"created_at"      db:"created_at"`
+}
+
+// DMPeer — данные собеседника в DM
+type DMPeer struct {
+	UserID      string  `json:"user_id"      db:"peer_user_id"`
+	DisplayName string  `json:"display_name" db:"peer_display_name"`
+	AvatarURL   *string `json:"avatar_url"   db:"peer_avatar_url"`
+	Status      string  `json:"status"       db:"peer_status"`
+}
 
 // ChannelAllowedRole — роль воркспейса с доступом к каналу
 type ChannelAllowedRole struct {

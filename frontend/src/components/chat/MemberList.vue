@@ -1,14 +1,24 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { channelsApi } from '@/api'
-import { useWorkspaceStore, useChannelsStore } from '@/stores'
+import { useWorkspaceStore, useChannelsStore, useAuthStore } from '@/stores'
 import { useProjectsStore } from '@/stores/projects'
+import { useNavigationStore } from '@/stores/navigation'
+import { useDMStore } from '@/stores/dm'
 import type { ChannelMemberInfo, WorkspaceMember, WorkspaceRole } from '@/types'
 import { Avatar } from '@/components/ui'
 
 const workspaceStore = useWorkspaceStore()
 const channelsStore = useChannelsStore()
 const projectsStore = useProjectsStore()
+const navigationStore = useNavigationStore()
+const authStore = useAuthStore()
+const dmStore = useDMStore()
+
+async function openDM(userId: string) {
+  if (userId === authStore.user?.id) return
+  await dmStore.openDM(userId)
+}
 
 const channelMembers = ref<ChannelMemberInfo[]>([])
 const loading = ref(false)
@@ -56,8 +66,8 @@ const enrichedMembers = computed<EnrichedMember[]>(() => {
     })
   }
 
-  // Если канал принадлежит проекту — показываем только участников проекта
-  if (projectsStore.currentProjectId) {
+  // Если активна секция проекта — показываем только участников проекта
+  if (navigationStore.activeSection === 'project' && navigationStore.activeProjectId) {
     return projectsStore.currentMembers.map((pm) => {
       const wm = workspaceMembers.value.find(m => m.user_id === pm.user_id)
       if (wm) return toEnriched(wm)
@@ -228,6 +238,7 @@ function presenceToAvatarStatus(presence: string): 'online' | 'away' | 'dnd' | '
             v-for="member in group.active"
             :key="member.user_id"
             class="flex items-center gap-2.5 px-3 py-1.5 mx-1 rounded-md hover:bg-elevated cursor-pointer group transition-colors"
+            @click="openDM(member.user_id)"
           >
             <Avatar
               :name="member.display_name"
@@ -235,7 +246,7 @@ function presenceToAvatarStatus(presence: string): 'online' | 'away' | 'dnd' | '
               size="sm"
               :status="presenceToAvatarStatus(member.presence)"
             />
-            <div class="min-w-0">
+            <div class="min-w-0 flex-1">
               <div class="text-sm text-secondary truncate group-hover:text-primary transition-colors">
                 {{ member.display_name }}
               </div>
@@ -246,13 +257,24 @@ function presenceToAvatarStatus(presence: string): 'online' | 'away' | 'dnd' | '
                 {{ member.system_role === 'owner' ? 'Владелец' : 'Администратор' }}
               </div>
             </div>
+            <button
+              v-if="member.user_id !== authStore.user?.id"
+              class="opacity-0 group-hover:opacity-100 p-1 rounded text-muted hover:text-primary transition-all shrink-0"
+              title="Написать сообщение"
+              @click.stop="openDM(member.user_id)"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </button>
           </div>
 
           <!-- Offline members -->
           <div
             v-for="member in group.offline"
             :key="member.user_id"
-            class="flex items-center gap-2.5 px-3 py-1.5 mx-1 rounded-md hover:bg-elevated cursor-pointer group transition-colors opacity-50"
+            class="flex items-center gap-2.5 px-3 py-1.5 mx-1 rounded-md hover:bg-elevated cursor-pointer group transition-colors opacity-50 hover:opacity-100"
+            @click="openDM(member.user_id)"
           >
             <Avatar
               :name="member.display_name"
@@ -260,7 +282,7 @@ function presenceToAvatarStatus(presence: string): 'online' | 'away' | 'dnd' | '
               size="sm"
               status="offline"
             />
-            <div class="min-w-0">
+            <div class="min-w-0 flex-1">
               <div class="text-sm text-subtle truncate group-hover:text-tertiary transition-colors">
                 {{ member.display_name }}
               </div>
@@ -271,6 +293,16 @@ function presenceToAvatarStatus(presence: string): 'online' | 'away' | 'dnd' | '
                 {{ member.system_role === 'owner' ? 'Владелец' : 'Администратор' }}
               </div>
             </div>
+            <button
+              v-if="member.user_id !== authStore.user?.id"
+              class="opacity-0 group-hover:opacity-100 p-1 rounded text-muted hover:text-primary transition-all shrink-0"
+              title="Написать сообщение"
+              @click.stop="openDM(member.user_id)"
+            >
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </button>
           </div>
         </template>
       </template>

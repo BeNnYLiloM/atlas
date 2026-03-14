@@ -145,13 +145,6 @@ function isActive(channelId: string): boolean {
   return route.params.channelId === channelId
 }
 
-function goBack() {
-  const wsId = workspaceStore.currentWorkspaceId
-  projectsStore.currentProjectId = null
-  if (wsId) channelsStore.fetchChannels(wsId)
-  router.push({ name: 'channels' })
-}
-
 function goToTasks() {
   const pid = route.params.projectId as string
   router.push(`/projects/${pid}/tasks`)
@@ -160,17 +153,8 @@ function goToTasks() {
 
 <template>
   <div class="flex-1 flex flex-col min-h-0 overflow-hidden">
-    <!-- Header: название проекта + кнопка назад -->
+    <!-- Header: название проекта -->
     <div class="px-3 py-2.5 border-b border-subtle flex items-center gap-2 flex-shrink-0">
-      <button
-        class="p-1 rounded text-muted hover:text-primary hover:bg-elevated transition-colors"
-        title="Назад в воркспейс"
-        @click="goBack"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-        </svg>
-      </button>
       <span
         class="w-10 h-10 rounded flex-shrink-0 overflow-hidden flex items-center justify-center text-lg font-semibold"
         :style="!project?.icon_url ? { backgroundColor: 'var(--accent-600-hex)', color: 'var(--accent-300-hex)' } : {}"

@@ -84,6 +84,12 @@ func Error(c *gin.Context, err error) {
 	case errors.Is(err, service.ErrLastLead):
 		status = http.StatusConflict
 		message = "cannot remove the last lead from a project"
+	case errors.Is(err, service.ErrDMSelf):
+		status = http.StatusBadRequest
+		message = "cannot create DM with yourself"
+	case errors.Is(err, service.ErrUserDeactivated):
+		status = http.StatusForbidden
+		message = "target user is deactivated"
 	}
 
 	c.JSON(status, ErrorResponse{Error: message})

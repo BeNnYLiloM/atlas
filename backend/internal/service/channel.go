@@ -29,6 +29,7 @@ type ChannelService struct {
 	permRepo          repository.ChannelPermissionRepository
 	roleRepo          repository.WorkspaceRoleRepository
 	projectRepo       repository.ProjectRepository
+	dmRepo            repository.DMChannelRepository
 }
 
 func NewChannelService(
@@ -38,6 +39,7 @@ func NewChannelService(
 	permRepo repository.ChannelPermissionRepository,
 	roleRepo repository.WorkspaceRoleRepository,
 	projectRepo repository.ProjectRepository,
+	dmRepo repository.DMChannelRepository,
 ) *ChannelService {
 	return &ChannelService{
 		channelRepo:       channelRepo,
@@ -46,6 +48,7 @@ func NewChannelService(
 		permRepo:          permRepo,
 		roleRepo:          roleRepo,
 		projectRepo:       projectRepo,
+		dmRepo:            dmRepo,
 	}
 }
 
@@ -148,7 +151,7 @@ func (s *ChannelService) Create(ctx context.Context, input domain.ChannelCreate,
 
 // GetByID возвращает канал по ID
 func (s *ChannelService) GetByID(ctx context.Context, channelID, userID string) (*domain.Channel, error) {
-	channel, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, channelID, userID)
+	channel, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, s.dmRepo, channelID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -323,7 +326,7 @@ func (s *ChannelService) Update(ctx context.Context, channelID string, input dom
 
 // UpdateNotifications обновляет уровень уведомлений текущего пользователя в канале
 func (s *ChannelService) UpdateNotifications(ctx context.Context, channelID, userID, level string) error {
-	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, channelID, userID); err != nil {
+	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, s.dmRepo, channelID, userID); err != nil {
 		return err
 	}
 
@@ -381,7 +384,7 @@ func (s *ChannelService) GetUnreadCount(ctx context.Context, channelID, userID s
 
 // GetChannelMembers возвращает участников канала
 func (s *ChannelService) GetChannelMembers(ctx context.Context, channelID, userID string) ([]*domain.ChannelMemberInfo, error) {
-	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, channelID, userID); err != nil {
+	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, s.dmRepo, channelID, userID); err != nil {
 		return nil, err
 	}
 
@@ -598,7 +601,7 @@ func (s *ChannelService) GetAccessibleUserIDs(ctx context.Context, channel *doma
 
 // CanUserWrite — все участники могут писать в публичные каналы
 func (s *ChannelService) CanUserWrite(ctx context.Context, channelID, userID string) (bool, error) {
-	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, channelID, userID); err != nil {
+	if _, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, s.dmRepo, channelID, userID); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -616,7 +619,7 @@ func (s *ChannelService) CanAccessWorkspace(ctx context.Context, workspaceID, us
 }
 
 func (s *ChannelService) CanAccessChannel(ctx context.Context, channelID, userID string) (bool, error) {
-	_, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, channelID, userID)
+	_, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, s.dmRepo, channelID, userID)
 	if err != nil {
 		if err == ErrForbidden || err == ErrNotMember || err == ErrChannelNotFound {
 			return false, nil

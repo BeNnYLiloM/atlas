@@ -9,6 +9,7 @@ import TaskCreationModal from '@/components/tasks/TaskCreationModal.vue'
 import { reactionsApi } from '@/api/reactions'
 import { useWorkspaceStore } from '@/stores/workspace'
 import { useAuthStore } from '@/stores/auth'
+import { useDMStore } from '@/stores/dm'
 import type { ReactionGroup } from '@/api/reactions'
 
 const props = defineProps<{
@@ -19,6 +20,13 @@ const props = defineProps<{
 const threadStore = useThreadStore()
 const workspaceStore = useWorkspaceStore()
 const authStore = useAuthStore()
+const dmStore = useDMStore()
+
+function openAuthorDM() {
+  const authorId = props.message.user_id
+  if (!authorId || authorId === authStore.user?.id) return
+  void dmStore.openDM(authorId)
+}
 const reactions = ref<ReactionGroup[]>([])
 const showTaskModal = ref(false)
 const showReactionPicker = ref(false)
@@ -166,7 +174,11 @@ const isMentioned = computed(() => {
 
     <div class="flex-1 min-w-0">
       <div class="flex items-baseline gap-2">
-        <span class="font-semibold text-primary text-sm">{{ displayName }}</span>
+        <span
+          class="font-semibold text-primary text-sm hover:underline cursor-pointer"
+          :class="{ 'cursor-default hover:no-underline': message.user_id === authStore.user?.id }"
+          @click="openAuthorDM"
+        >{{ displayName }}</span>
         <span class="text-xs text-subtle">{{ time }}</span>
       </div>
       <img

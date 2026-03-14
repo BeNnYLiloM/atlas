@@ -29,6 +29,7 @@ func getAccessibleChannel(
 	roleRepo repository.WorkspaceRoleRepository,
 	permRepo repository.ChannelPermissionRepository,
 	projectRepo repository.ProjectRepository,
+	dmRepo repository.DMChannelRepository,
 	channelID, userID string,
 ) (*domain.Channel, *domain.WorkspaceMember, error) {
 	channel, err := channelRepo.GetByID(ctx, channelID)
@@ -37,6 +38,19 @@ func getAccessibleChannel(
 	}
 	if channel == nil {
 		return nil, nil, ErrChannelNotFound
+	}
+
+	// DM-канал: доступ только через channel_members, без fallback на workspace-роли.
+	// Даже workspace owner не может читать чужие DM.
+	if channel.Type == domain.ChannelTypeDM {
+		isMember, err := dmRepo.IsMember(ctx, channelID, userID)
+		if err != nil {
+			return nil, nil, err
+		}
+		if !isMember {
+			return nil, nil, ErrForbidden
+		}
+		return channel, nil, nil
 	}
 
 	// Канал принадлежит проекту — отдельная ветка проверки доступа

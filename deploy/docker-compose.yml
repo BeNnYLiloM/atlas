@@ -65,9 +65,9 @@ services:
     volumes:
       - ./configs/livekit.yaml:/etc/livekit.yaml
     ports:
-      - "7880:7880"
-      - "7881:7881"
-      - "7882:7882/udp"
+      - "7880:7880"       # HTTP/WS сигнализация
+      - "7881:7881/tcp"   # RTC TCP (ICE через TCP)
+      - "7882:7882/udp"   # RTC UDP
     depends_on:
       - redis
 

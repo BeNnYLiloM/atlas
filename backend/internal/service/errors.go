@@ -21,4 +21,6 @@ var (
 	ErrNotProjectMember   = errors.New("user is not a member of this project")
 	ErrProjectArchived    = errors.New("project is archived")
 	ErrLastLead           = errors.New("cannot remove the last lead from a project")
+	ErrDMSelf             = errors.New("cannot create DM with yourself")
+	ErrUserDeactivated    = errors.New("target user is deactivated")
 )

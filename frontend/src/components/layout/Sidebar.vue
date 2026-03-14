@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore, useWorkspaceStore, useChannelsStore } from '@/stores'
 import { useProjectsStore } from '@/stores/projects'
+import { useNavigationStore } from '@/stores/navigation'
 import { Avatar, Modal, Input, Button } from '@/components/ui'
-import WorkspaceSwitcher from './WorkspaceSwitcher.vue'
 import ChannelList from './ChannelList.vue'
 import CallPanel from '@/components/calls/CallPanel.vue'
 import WorkspaceSettingsModal from '@/components/workspace/WorkspaceSettingsModal.vue'
 import UserSettingsModal from '@/components/workspace/UserSettingsModal.vue'
-import ProjectList from '@/components/project/ProjectList.vue'
 import ProjectSidebar from '@/components/project/ProjectSidebar.vue'
 import { authApi } from '@/api/auth'
 import type { UserStatusValue } from '@/api/auth'
+import { useDMStore } from '@/stores/dm'
+import { RouterLink } from 'vue-router'
 
 const router = useRouter()
 const route = useRoute()
@@ -20,10 +21,29 @@ const authStore = useAuthStore()
 const workspaceStore = useWorkspaceStore()
 const channelsStore = useChannelsStore()
 const projectsStore = useProjectsStore()
+const navigationStore = useNavigationStore()
+const dmStoreInst = useDMStore()
 
-// Показываем ProjectSidebar когда находимся внутри проекта
+const dmListSidebar = computed(() => dmStoreInst.dmList)
+
+const STATUS_COLORS: Record<string, string> = {
+  online: '#3fb950',
+  away: '#d29922',
+  dnd: '#f85149',
+  offline: '#6e7681',
+}
+
+function statusColor(status: string): string {
+  return STATUS_COLORS[status] ?? STATUS_COLORS.offline
+}
+
 const isProjectRoute = computed(() =>
+  navigationStore.activeSection === 'project' ||
   route.name === 'project' || route.name === 'project-channel' || route.name === 'project-tasks'
+)
+const isDMRoute = computed(() =>
+  navigationStore.activeSection === 'dm' ||
+  route.name === 'dm' || route.name === 'dm-channel'
 )
 
 const showCreateChannel = ref(false)
@@ -50,16 +70,6 @@ const canCreateProject = computed(() => {
   // TODO: проверка create_projects через effectivePermissions
   return false
 })
-
-watch(
-  () => workspaceStore.currentWorkspaceId,
-  async (wsId) => {
-    if (wsId) {
-      await projectsStore.fetchProjects(wsId)
-    }
-  },
-  { immediate: true }
-)
 
 async function createProject() {
   if (!newProjectName.value.trim() || !workspaceStore.currentWorkspaceId) return
@@ -174,12 +184,42 @@ async function logout() {
 </script>
 
 <template>
-  <aside class="w-64 flex flex-col bg-surface border-r border-subtle">
-    <WorkspaceSwitcher />
-
-    <!-- Режим проекта: показываем ProjectSidebar вместо списка каналов -->
+  <aside class="w-60 flex flex-col bg-surface border-r border-subtle">
+    <!-- Режим проекта -->
     <template v-if="isProjectRoute">
       <ProjectSidebar class="flex-1 min-h-0" />
+    </template>
+
+    <!-- DM: список диалогов — пустой placeholder, реальный список в DMView -->
+    <template v-else-if="isDMRoute">
+      <div class="flex-1 flex flex-col">
+        <div class="px-3 py-3 border-b border-subtle">
+          <p class="text-xs font-semibold text-subtle uppercase tracking-wider">Личные сообщения</p>
+        </div>
+        <RouterLink
+          v-for="dm in dmListSidebar"
+          :key="dm.channelId"
+          :to="{ name: 'dm-channel', params: { channelId: dm.channelId } }"
+          class="flex items-center gap-2.5 px-3 py-2 hover:bg-elevated transition-colors"
+          active-class="bg-elevated"
+        >
+          <div class="relative shrink-0">
+            <Avatar :name="dm.peer.displayName" :src="dm.peer.avatarUrl ?? undefined" size="sm" />
+            <span
+              class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--bg-surface)]"
+              :style="{ background: statusColor(dm.peer.status) }"
+            />
+          </div>
+          <span
+            class="text-sm truncate flex-1"
+            :class="dm.unreadCount > 0 ? 'text-primary font-semibold' : 'text-secondary'"
+          >{{ dm.peer.displayName }}</span>
+          <span
+            v-if="dm.unreadCount > 0"
+            class="ml-auto shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center"
+          >{{ dm.unreadCount > 99 ? '99+' : dm.unreadCount }}</span>
+        </RouterLink>
+      </div>
     </template>
 
     <!-- Обычный режим воркспейса -->

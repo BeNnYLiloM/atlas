@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"log"
 	"strconv"
 
@@ -48,30 +49,14 @@ func (h *MessageHandler) Create(c *gin.Context) {
 	ctx := c.Request.Context()
 	channel, err := h.channelService.GetByID(ctx, message.ChannelID, userID)
 	if err == nil && channel != nil {
-		// Для проектных каналов — рассылаем только участникам проекта + view_all_projects
-		broadcastFn := func(event string, data interface{}) {
-			if channel.ProjectID != nil {
-				recipientIDs, _ := h.projectService.GetProjectMembersAndViewAll(ctx, *channel.ProjectID, channel.WorkspaceID)
-				filtered := make([]string, 0, len(recipientIDs))
-				for _, id := range recipientIDs {
-					if id != userID {
-						filtered = append(filtered, id)
-					}
-				}
-				h.wsHub.BroadcastToUsers(filtered, event, data)
-			} else {
-				h.wsHub.BroadcastToWorkspace(channel.WorkspaceID, event, data, userID)
-			}
-		}
-
 		if message.ParentID != nil {
-			broadcastFn("thread_reply", map[string]interface{}{
+			h.broadcastChannelEvent(ctx, channel, userID, "thread_reply", map[string]interface{}{
 				"channel_id": message.ChannelID,
 				"parent_id":  *message.ParentID,
 				"message":    message,
 			})
 		} else {
-			broadcastFn("message", map[string]interface{}{
+			h.broadcastChannelEvent(ctx, channel, userID, "message", map[string]interface{}{
 				"channel_id": message.ChannelID,
 				"message":    message,
 			})
@@ -129,20 +114,13 @@ func (h *MessageHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// Получаем канал для workspaceID
 	ctx := c.Request.Context()
 	channel, err := h.channelService.GetByID(ctx, message.ChannelID, userID)
 	if err == nil && channel != nil {
-		// Broadcast обновления сообщения в workspace (исключаем редактора)
-		h.wsHub.BroadcastToWorkspace(
-			channel.WorkspaceID,
-			"message_updated",
-			map[string]interface{}{
-				"channel_id": message.ChannelID,
-				"message":    message,
-			},
-			userID, // Исключаем редактора
-		)
+		h.broadcastChannelEvent(ctx, channel, userID, "message_updated", map[string]interface{}{
+			"channel_id": message.ChannelID,
+			"message":    message,
+		})
 	}
 
 	response.Success(c, message)
@@ -159,20 +137,13 @@ func (h *MessageHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	// Получаем канал для workspaceID
 	ctx := c.Request.Context()
 	channel, err := h.channelService.GetByID(ctx, channelID, userID)
 	if err == nil && channel != nil {
-		// Broadcast удаления сообщения в workspace (исключаем удалившего)
-		h.wsHub.BroadcastToWorkspace(
-			channel.WorkspaceID,
-			"message_deleted",
-			map[string]interface{}{
-				"channel_id": channelID,
-				"message_id": messageID,
-			},
-			userID, // Исключаем удалившего
-		)
+		h.broadcastChannelEvent(ctx, channel, userID, "message_deleted", map[string]interface{}{
+			"channel_id": channelID,
+			"message_id": messageID,
+		})
 	}
 
 	response.NoContent(c)
@@ -233,3 +204,35 @@ func (h *MessageHandler) RegisterRoutes(r *gin.RouterGroup, authMiddleware gin.H
 	// Сообщения канала - регистрируется в ChannelHandler
 }
 
+// broadcastChannelEvent рассылает WS-событие с учётом типа канала.
+// DM → только двум участникам с префиксом dm_.
+// Проектный → только участникам проекта.
+// Обычный → всему workspace.
+func (h *MessageHandler) broadcastChannelEvent(ctx context.Context, channel *domain.Channel, senderID, event string, data interface{}) {
+	switch {
+	case channel.Type == domain.ChannelTypeDM:
+		members, err := h.channelService.GetChannelMembers(ctx, channel.ID, senderID)
+		if err != nil {
+			log.Printf("[MessageHandler] DM get members for broadcast error: %v", err)
+			return
+		}
+		recipientIDs := make([]string, 0, len(members))
+		for _, m := range members {
+			if m.UserID != senderID {
+				recipientIDs = append(recipientIDs, m.UserID)
+			}
+		}
+		h.wsHub.BroadcastToUsers(recipientIDs, "dm_"+event, data)
+	case channel.ProjectID != nil:
+		recipientIDs, _ := h.projectService.GetProjectMembersAndViewAll(ctx, *channel.ProjectID, channel.WorkspaceID)
+		filtered := make([]string, 0, len(recipientIDs))
+		for _, id := range recipientIDs {
+			if id != senderID {
+				filtered = append(filtered, id)
+			}
+		}
+		h.wsHub.BroadcastToUsers(filtered, event, data)
+	default:
+		h.wsHub.BroadcastToWorkspace(channel.WorkspaceID, event, data, senderID)
+	}
+}

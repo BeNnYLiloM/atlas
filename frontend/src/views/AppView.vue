@@ -8,6 +8,7 @@ import Sidebar from '@/components/layout/Sidebar.vue'
 import AppRail from '@/components/layout/AppRail.vue'
 import SearchBar from '@/components/search/SearchBar.vue'
 import ShortcutsModal from '@/components/settings/ShortcutsModal.vue'
+import IncomingCallModal from '@/components/calls/IncomingCallModal.vue'
 import { useIdleDetector } from '@/composables'
 import { authApi } from '@/api/auth'
 import type { UserStatusValue } from '@/api/auth'
@@ -156,6 +157,7 @@ watch(isProjectRoute, async (inProject, wasInProject) => {
     </main>
 
     <ShortcutsModal />
+    <IncomingCallModal />
   </div>
 </template>
 

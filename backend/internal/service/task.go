@@ -26,6 +26,7 @@ type TaskService struct {
 	roleRepo      repository.WorkspaceRoleRepository
 	permRepo      repository.ChannelPermissionRepository
 	projectRepo   repository.ProjectRepository
+	dmRepo        repository.DMChannelRepository
 }
 
 func NewTaskService(
@@ -36,6 +37,7 @@ func NewTaskService(
 	roleRepo repository.WorkspaceRoleRepository,
 	permRepo repository.ChannelPermissionRepository,
 	projectRepo repository.ProjectRepository,
+	dmRepo repository.DMChannelRepository,
 ) *TaskService {
 	return &TaskService{
 		repo:          repo,
@@ -45,6 +47,7 @@ func NewTaskService(
 		roleRepo:      roleRepo,
 		permRepo:      permRepo,
 		projectRepo:   projectRepo,
+		dmRepo:        dmRepo,
 	}
 }
 
@@ -84,7 +87,7 @@ func (s *TaskService) Create(ctx context.Context, userID string, input *domain.T
 		if message == nil {
 			return nil, ErrMessageNotFound
 		}
-		channel, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, message.ChannelID, userID)
+		channel, _, err := getAccessibleChannel(ctx, s.channelRepo, s.workspaceRepo, s.roleRepo, s.permRepo, s.projectRepo, s.dmRepo, message.ChannelID, userID)
 		if err != nil {
 			return nil, err
 		}
