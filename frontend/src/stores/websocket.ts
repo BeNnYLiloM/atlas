@@ -6,6 +6,7 @@ import { useThreadStore } from './thread'
 import { useWorkspaceStore } from './workspace'
 import { useAuthStore } from './auth'
 import { useProjectsStore } from './projects'
+import { useDMStore } from './dm'
 import { playNotificationSound, isSoundEnabled, isMentionSoundEnabled } from '@/utils/notificationSound'
 import { createAuthenticatedWebSocket } from '@/api/websocket'
 import { ensureAccessToken } from '@/api/session'
@@ -26,7 +27,7 @@ function showBrowserNotification(title: string, body: string, channelId: string)
 }
 
 interface WSEvent {
-  type: 'message' | 'message_updated' | 'message_deleted' | 'thread_reply' | 'channel_created' | 'channel_updated' | 'channel_deleted' | 'member_added' | 'member_removed' | 'member_updated' | 'workspace_updated' | 'typing' | 'presence' | 'reaction_added' | 'reaction_removed' | 'category_created' | 'category_updated' | 'category_deleted' | 'project_created' | 'project_updated' | 'project_deleted' | 'project_member_added' | 'project_member_removed'
+  type: 'message' | 'message_updated' | 'message_deleted' | 'thread_reply' | 'channel_created' | 'channel_updated' | 'channel_deleted' | 'member_added' | 'member_removed' | 'member_updated' | 'workspace_updated' | 'typing' | 'presence' | 'reaction_added' | 'reaction_removed' | 'category_created' | 'category_updated' | 'category_deleted' | 'project_created' | 'project_updated' | 'project_deleted' | 'project_member_added' | 'project_member_removed' | 'dm_message' | 'dm_thread_reply'
   payload: unknown
 }
 
@@ -246,8 +247,9 @@ export const useWebSocketStore = defineStore('websocket', () => {
       }
 
       case 'presence': {
-        const { user_id, status } = event.payload as { user_id: string, status: string }
+        const { user_id, status } = event.payload as { user_id: string; status: string }
         workspaceStore.setPresence(user_id, status)
+        useDMStore().updatePeerStatus(user_id, status)
         console.log('[WS] Presence update:', user_id, '->', status)
         break
       }
@@ -279,6 +281,23 @@ export const useWebSocketStore = defineStore('websocket', () => {
       case 'project_member_removed': {
         const data = event.payload as { project_id: string; user_id: string }
         projectsStore.onMemberRemoved(data)
+        break
+      }
+
+      case 'dm_message': {
+        const { channel_id, message } = event.payload as { channel_id: string; message: Message }
+        const authStore = useAuthStore()
+        messagesStore.addMessage(message)
+        if (message.user_id !== authStore.user?.id) {
+          useDMStore().onDMMessage(channel_id)
+          if (isSoundEnabled()) playNotificationSound('message')
+        }
+        break
+      }
+
+      case 'dm_thread_reply': {
+        const { parent_id, message } = event.payload as { channel_id: string; parent_id: string; message: Message }
+        threadStore.addThreadReply(parent_id, message)
         break
       }
 
